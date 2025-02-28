@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cat Chase 2025</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+</head>
+<body>
+  <div class="game-container">
+    <div class="sidebar">
+      <div class="logo">
+        <h1>Cat Chase 2025</h1>
+      </div>
+      <div class="player-form">
+        <h2>Join the Game</h2>
+        <form id="join-form">
+          <div class="form-group">
+            <label for="player-name">Your Name</label>
+            <input type="text" id="player-name" placeholder="Enter your name" required>
+          </div>
+          <div class="form-group">
+            <label for="player-type">I am a:</label>
+            <select id="player-type">
+              <option value="player">Player</option>
+              <option value="cat">Cat</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-primary">Join Game</button>
+        </form>
+      </div>
+      <div class="players-list">
+        <h2>Players</h2>
+        <ul id="players"></ul>
+      </div>
+      <div class="cats-list">
+        <h2>Cats</h2>
+        <ul id="cats"></ul>
+      </div>
+    </div>
+    <div class="map-container">
+      <div id="game-map"></div>
+      <div class="game-controls">
+        <button id="center-map" class="btn-secondary">Center Map</button>
+        <div class="game-status">
+          <span id="status-indicator"></span>
+          <span id="status-text">Connected</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="welcome-modal">
+    <div class="modal-content">
+      <h2>Welcome to Cat Chase 2025!</h2>
+      <p>In this game, players and cats move around the map in real-time.</p>
+      <ul>
+        <li>Players' exact positions are hidden within a proximity circle</li>
+        <li>Cats' positions are shown precisely</li>
+        <li>Stay within the global boundary or your position will be revealed!</li>
+      </ul>
+      <button id="start-game" class="btn-primary btn-start">Let's Play!</button>
+    </div>
+  </div>
+
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <p>Chargement en cours...</p>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+
