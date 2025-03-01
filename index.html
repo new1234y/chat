@@ -13,6 +13,7 @@
       <div class="logo">
         <h1>Cat Chase 2025</h1>
       </div>
+      <div id="player-score" class="player-score">Score: 0</div>
       <div class="player-form">
         <h2>Join the Game</h2>
         <form id="join-form">
@@ -29,6 +30,7 @@
           </div>
           <button type="submit" class="btn-primary">Join Game</button>
         </form>
+        <button id="switch-to-cat" class="btn-secondary" style="display: none;">Devenir un chat</button>
       </div>
       <div class="players-list">
         <h2>Players</h2>
@@ -43,6 +45,7 @@
       <div id="game-map"></div>
       <div class="game-controls">
         <button id="center-map" class="btn-secondary">Center Map</button>
+        <button id="refresh-map" class="btn-secondary">Actualiser</button>
         <div class="game-status">
           <span id="status-indicator"></span>
           <span id="status-text">Connected</span>

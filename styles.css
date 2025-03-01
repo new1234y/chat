@@ -1,375 +1,394 @@
 :root {
-    --primary-color: #6c5ce7;
-    --secondary-color: #00cec9;
-    --accent-color: #fd79a8;
-    --background-color: #f8f9fa;
-    --dark-color: #2d3436;
-    --light-color: #ffffff;
-    --success-color: #00b894;
-    --warning-color: #fdcb6e;
-    --danger-color: #d63031;
-    --border-radius: 12px;
-    --box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-    --transition: all 0.3s ease;
+  --primary-color: #6c5ce7;
+  --secondary-color: #00cec9;
+  --accent-color: #fd79a8;
+  --background-color: #f8f9fa;
+  --dark-color: #2d3436;
+  --light-color: #ffffff;
+  --success-color: #00b894;
+  --warning-color: #fdcb6e;
+  --danger-color: #d63031;
+  --border-radius: 12px;
+  --box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --transition: all 0.3s ease;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: var(--background-color);
+  color: var(--dark-color);
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.game-container {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 320px;
+  background-color: var(--light-color);
+  padding: 20px;
+  box-shadow: var(--box-shadow);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.logo h1 {
+  font-size: 1.8rem;
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  text-align: center;
+  background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.player-form {
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 20px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  margin-bottom: 20px;
+}
+
+.player-form h2 {
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+  color: var(--dark-color);
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--dark-color);
+  transition: all 0.2s ease;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 10px 15px;
+  border: 1px solid #ddd;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  transition: var(--transition);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
+  transform: translateY(-2px);
+}
+
+.form-group input:focus + label,
+.form-group select:focus + label {
+  color: var(--primary-color);
+}
+
+.btn-primary {
+  background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-weight: 600;
+  width: 100%;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+.btn-primary:hover::after {
+  transform: translateX(0);
+}
+
+.btn-secondary {
+  background-color: var(--light-color);
+  color: var(--dark-color);
+  border: 1px solid #ddd;
+  padding: 8px 15px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.btn-secondary:hover {
+  background-color: #f1f1f1;
+}
+
+.players-list,
+.cats-list {
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 15px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  margin-bottom: 20px;
+}
+
+.players-list h2,
+.cats-list h2 {
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  color: var(--dark-color);
+}
+
+.players-list ul,
+.cats-list ul {
+  list-style: none;
+}
+
+.players-list li,
+.cats-list li {
+  padding: 8px 10px;
+  border-radius: var(--border-radius);
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.players-list li::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  margin-right: 10px;
+}
+
+.cats-list li::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--accent-color);
+  margin-right: 10px;
+}
+
+.map-container {
+  flex: 1;
+  position: relative;
+}
+
+#game-map {
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+}
+
+.game-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.game-status {
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 8px 15px;
+  border-radius: var(--border-radius);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--box-shadow);
+}
+
+#status-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--success-color);
+}
+
+.modal {
+  display: none; /* Caché par défaut, sera affiché en JS */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(5px);
+  transition: all 0.3s ease;
+}
+
+.modal-content {
+  background-color: var(--light-color);
+  padding: 30px;
+  border-radius: var(--border-radius);
+  max-width: 500px;
+  width: 90%;
+  box-shadow: var(--box-shadow);
+  transform: scale(1);
+  transition: transform 0.3s ease;
+  animation: modalAppear 0.4s ease-out;
+}
+
+@keyframes modalAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
   }
-  
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  }
-  
-  body {
-    background-color: var(--background-color);
-    color: var(--dark-color);
-    min-height: 100vh;
-    overflow: hidden;
-  }
-  
-  .game-container {
-    display: flex;
-    height: 100vh;
-  }
-  
-  .sidebar {
-    width: 320px;
-    background-color: var(--light-color);
-    padding: 20px;
-    box-shadow: var(--box-shadow);
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-  }
-  
-  .logo h1 {
-    font-size: 1.8rem;
-    color: var(--primary-color);
-    margin-bottom: 20px;
-    text-align: center;
-    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  
-  .player-form {
-    background-color: rgba(255, 255, 255, 0.8);
-    padding: 20px;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    margin-bottom: 20px;
-  }
-  
-  .player-form h2 {
-    font-size: 1.2rem;
-    margin-bottom: 15px;
-    color: var(--dark-color);
-  }
-  
-  .form-group {
-    margin-bottom: 15px;
-  }
-  
-  .form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 500;
-    color: var(--dark-color);
-    transition: all 0.2s ease;
-  }
-  
-  .form-group input,
-  .form-group select {
-    width: 100%;
-    padding: 10px 15px;
-    border: 1px solid #ddd;
-    border-radius: var(--border-radius);
-    font-size: 1rem;
-    transition: var(--transition);
-  }
-  
-  .form-group input:focus,
-  .form-group select:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
-    transform: translateY(-2px);
-  }
-  
-  .form-group input:focus + label,
-  .form-group select:focus + label {
-    color: var(--primary-color);
-  }
-  
-  .btn-primary {
-    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    font-weight: 600;
-    width: 100%;
-    transition: var(--transition);
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  }
-  
-  .btn-primary:active {
-    transform: translateY(0);
-  }
-  
-  .btn-primary::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-  }
-  
-  .btn-primary:hover::after {
-    transform: translateX(0);
-  }
-  
-  .btn-secondary {
-    background-color: var(--light-color);
-    color: var(--dark-color);
-    border: 1px solid #ddd;
-    padding: 8px 15px;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    font-weight: 500;
-    transition: var(--transition);
-  }
-  
-  .btn-secondary:hover {
-    background-color: #f1f1f1;
-  }
-  
-  .players-list,
-  .cats-list {
-    background-color: rgba(255, 255, 255, 0.8);
-    padding: 15px;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    margin-bottom: 20px;
-  }
-  
-  .players-list h2,
-  .cats-list h2 {
-    font-size: 1.2rem;
-    margin-bottom: 10px;
-    color: var(--dark-color);
-  }
-  
-  .players-list ul,
-  .cats-list ul {
-    list-style: none;
-  }
-  
-  .players-list li,
-  .cats-list li {
-    padding: 8px 10px;
-    border-radius: var(--border-radius);
-    margin-bottom: 5px;
-    display: flex;
-    align-items: center;
-    background-color: rgba(255, 255, 255, 0.7);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  }
-  
-  .players-list li::before {
-    content: "";
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: var(--primary-color);
-    margin-right: 10px;
-  }
-  
-  .cats-list li::before {
-    content: "";
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: var(--accent-color);
-    margin-right: 10px;
-  }
-  
-  .map-container {
-    flex: 1;
-    position: relative;
-  }
-  
-  #game-map {
-    height: 100%;
-    width: 100%;
-    z-index: 1;
-  }
-  
-  .game-controls {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-  }
-  
-  .game-status {
-    background-color: rgba(255, 255, 255, 0.9);
-    padding: 8px 15px;
-    border-radius: var(--border-radius);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: var(--box-shadow);
-  }
-  
-  #status-indicator {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: var(--success-color);
-  }
-  
-  .modal {
-    display: none; /* Caché par défaut, sera affiché en JS */
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    backdrop-filter: blur(5px);
-    transition: all 0.3s ease;
-  }
-  
-  .modal-content {
-    background-color: var(--light-color);
-    padding: 30px;
-    border-radius: var(--border-radius);
-    max-width: 500px;
-    width: 90%;
-    box-shadow: var(--box-shadow);
+  100% {
+    opacity: 1;
     transform: scale(1);
-    transition: transform 0.3s ease;
-    animation: modalAppear 0.4s ease-out;
   }
-  
-  @keyframes modalAppear {
-    0% {
-      opacity: 0;
-      transform: scale(0.9);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
+}
+
+.modal-content h2 {
+  margin-bottom: 15px;
+  color: var(--primary-color);
+}
+
+.modal-content p {
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.modal-content ul {
+  margin-bottom: 20px;
+  padding-left: 20px;
+}
+
+.modal-content li {
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+/* Ajouter des styles pour le bouton de démarrage */
+.btn-start {
+  background: linear-gradient(45deg, var(--accent-color), var(--primary-color));
+  font-size: 1.1rem;
+  padding: 15px 25px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn-start:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.btn-start:active {
+  transform: translateY(1px);
+}
+
+/* Ajouter un overlay de chargement */
+.loading-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 3000;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  color: white;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: var(--primary-color);
+  animation: spin 1s ease-in-out infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
-  
-  .modal-content h2 {
-    margin-bottom: 15px;
-    color: var(--primary-color);
-  }
-  
-  .modal-content p {
-    margin-bottom: 20px;
-    line-height: 1.6;
-  }
-  
-  .modal-content ul {
-    margin-bottom: 20px;
-    padding-left: 20px;
-  }
-  
-  .modal-content li {
-    margin-bottom: 10px;
-    line-height: 1.4;
-  }
-  
-  /* Ajouter des styles pour le bouton de démarrage */
-  .btn-start {
-    background: linear-gradient(45deg, var(--accent-color), var(--primary-color));
-    font-size: 1.1rem;
-    padding: 15px 25px;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  }
-  
-  .btn-start:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-  }
-  
-  .btn-start:active {
-    transform: translateY(1px);
-  }
-  
-  /* Ajouter un overlay de chargement */
-  .loading-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    z-index: 3000;
-    justify-content: center;
-    align-items: center;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .game-container {
     flex-direction: column;
-    color: white;
   }
-  
-  .spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    border-top-color: var(--primary-color);
-    animation: spin 1s ease-in-out infinite;
-    margin-bottom: 20px;
+
+  .sidebar {
+    width: 100%;
+    height: 40vh;
+    min-height: 300px;
   }
-  
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
+
+  .map-container {
+    height: 60vh;
   }
-  
-  /* Responsive styles */
-  @media (max-width: 768px) {
-    .game-container {
-      flex-direction: column;
-    }
-  
-    .sidebar {
-      width: 100%;
-      height: 40vh;
-      min-height: 300px;
-    }
-  
-    .map-container {
-      height: 60vh;
-    }
-  }
-  
-  
+}
+
+/* Ajoutez ceci à la fin du fichier CSS */
+.player-score {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Ajoutez ce style pour le bouton d'actualisation */
+#refresh-map {
+  margin-left: 10px;
+}
+
+/* Ajoutez ce style pour le bouton "Devenir un chat" */
+#switch-to-cat {
+  margin-top: 10px;
+  width: 100%;
+}
+

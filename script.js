@@ -4,8 +4,6 @@ const supabaseKey =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hZHd1YWNwb3VwcGR5bnNzeHJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2NzMyMTEsImV4cCI6MjA1NjI0OTIxMX0.MF7Ijl8SHm7wzKt8XiD3EQVqikLaVqkhPAYkqiJHisA"
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
 
-// Import Leaflet library
-
 // Game configuration
 const config = {
   defaultCenter: [48.8566, 2.3522], // Paris as default center
@@ -24,8 +22,11 @@ const gameState = {
   globalBoundary: null,
   playerMarker: null,
   playerCircle: null,
+  playerExactPositionMarker: null, // Ajout pour le marqueur de position exacte
+  playerCirclePosition: null, // Ajout pour la position du cercle
   subscription: null,
   isOutsideBoundary: false,
+  lastScoreUpdate: Date.now(),
 }
 
 // DOM Elements
@@ -152,6 +153,18 @@ function setupEventListeners() {
       alert("Veuillez d'abord rejoindre la partie !")
     }
   })
+
+  // Ajoutez cet écouteur d'événements pour le bouton d'actualisation
+  const refreshButton = document.getElementById("refresh-map")
+  if (refreshButton) {
+    refreshButton.addEventListener("click", refreshMapAndLists)
+  }
+
+  // Ajoutez cet écouteur d'événements pour le bouton "Devenir un chat"
+  const switchToCatButton = document.getElementById("switch-to-cat")
+  if (switchToCatButton) {
+    switchToCatButton.addEventListener("click", switchToCat)
+  }
 }
 
 // Handle join game form submission
@@ -172,11 +185,9 @@ async function handleJoinGame(e) {
     return
   }
 
-  // Show loading overlay
   showLoading()
 
   try {
-    // Check if player with same name already exists
     const { data: existingPlayer, error: checkError } = await supabase
       .from("player")
       .select("id, name")
@@ -191,30 +202,57 @@ async function handleJoinGame(e) {
     }
 
     if (existingPlayer) {
-      alert(`Un joueur avec le nom "${name}" existe déjà. Veuillez choisir un autre nom.`)
-      hideLoading()
-      return
+      const { error: deleteError } = await supabase.from("player").delete().eq("id", existingPlayer.id)
+
+      if (deleteError) {
+        console.error("Error deleting existing player:", deleteError)
+        alert("Erreur lors de la reprise du pseudo. Veuillez réessayer.")
+        hideLoading()
+        return
+      }
     }
 
-    // Get user's current position or use default
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const playerPosition = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        }
+    // Utiliser la géolocalisation en continu
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const playerPosition = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          }
 
-        await joinGame(name, type, playerPosition)
-        hideLoading()
-      },
-      async (error) => {
-        console.warn("Geolocation error:", error)
-        // Use default position if geolocation fails
-        await joinGame(name, type, { lat: config.defaultCenter[0], lng: config.defaultCenter[1] })
-        hideLoading()
-      },
-      { timeout: 10000 }, // 10 second timeout for geolocation
-    )
+          await joinGame(name, type, playerPosition)
+          hideLoading()
+
+          navigator.geolocation.watchPosition(
+            (newPosition) => {
+              const newPlayerPosition = {
+                lat: newPosition.coords.latitude,
+                lng: newPosition.coords.longitude,
+              }
+
+              if (gameState.player) {
+                gameState.player.position = newPlayerPosition
+                updatePlayerPosition()
+              }
+            },
+            (error) => {
+              console.warn("Geolocation watch error:", error)
+            },
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
+          )
+        },
+        (error) => {
+          console.warn("Geolocation error:", error)
+          alert("Impossible d'obtenir votre position. Veuillez activer la géolocalisation et réessayer.")
+          hideLoading()
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      )
+    } else {
+      alert("La géolocalisation n'est pas supportée par votre navigateur.")
+      hideLoading()
+    }
   } catch (error) {
     console.error("Error in join process:", error)
     alert("Une erreur est survenue. Veuillez réessayer.")
@@ -235,6 +273,7 @@ async function joinGame(name, type, position) {
     name: name,
     type: type,
     position: position,
+    score: 0, // Initialiser le score à 0
   }
 
   try {
@@ -267,12 +306,19 @@ async function joinGame(name, type, position) {
     // Subscribe to real-time updates
     subscribeToUpdates()
 
-    // Start position update interval
-    startPositionUpdates()
-
     // Update lists
     updatePlayersList()
     updateCatsList()
+
+    // Start score update interval
+    setInterval(updateScore, 1000) // Update score every second
+
+    // Mettre à jour l'interface utilisateur
+    document.querySelectorAll(".player-form > *:not(#switch-to-cat)").forEach((el) => (el.style.display = "none"))
+    const switchToCatButton = document.getElementById("switch-to-cat")
+    if (switchToCatButton) {
+      switchToCatButton.style.display = type === "player" ? "block" : "none"
+    }
 
     console.log("Successfully joined game")
   } catch (error) {
@@ -286,119 +332,79 @@ function addPlayerToMap(entity) {
   const isCurrentPlayer = gameState.player && entity.id === gameState.player.id
   const isPlayer = entity.type === "player"
 
-  if (isCurrentPlayer) {
-    // Add marker for current player
-    gameState.playerMarker = L.marker([entity.position.lat, entity.position.lng], {
-      icon: L.divIcon({
-        className: "current-player-marker",
-        html: `<div style="background-color: #6c5ce7; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>`,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
-      }),
-    }).addTo(gameState.map)
+  if (isPlayer) {
+    let circlePosition
+    if (isCurrentPlayer) {
+      circlePosition = gameState.playerCirclePosition || entity.position
+    } else {
+      circlePosition = entity.position
+    }
 
-    // Add proximity circle for current player
-    gameState.playerCircle = L.circle([entity.position.lat, entity.position.lng], {
+    const circle = L.circle([circlePosition.lat, circlePosition.lng], {
       radius: config.playerProximityRadius,
-      color: "#6c5ce7",
-      fillColor: "#6c5ce7",
+      color: isCurrentPlayer ? "#6c5ce7" : "#00cec9",
+      fillColor: isCurrentPlayer ? "#6c5ce7" : "#00cec9",
       fillOpacity: 0.2,
       weight: 1,
     }).addTo(gameState.map)
 
-    // Update global boundary center
-    gameState.globalBoundary.setLatLng([entity.position.lat, entity.position.lng])
-  } else if (isPlayer) {
-    // For other players, show approximate position with a circle
-    const marker = L.marker([entity.position.lat, entity.position.lng], {
-      icon: L.divIcon({
-        className: "player-marker",
-        html: `<div style="background-color: #00cec9; width: 15px; height: 15px; border-radius: 50%; border: 2px solid white;"></div>`,
-        iconSize: [15, 15],
-        iconAnchor: [7.5, 7.5],
-      }),
-    })
+    if (isCurrentPlayer) {
+      const exactPositionMarker = L.marker([entity.position.lat, entity.position.lng], {
+        icon: L.divIcon({
+          className: "player-exact-position",
+          html: `<div style="width: 10px; height: 10px; background-color: #6c5ce7; border-radius: 50%;"></div>`,
+          iconSize: [10, 10],
+          iconAnchor: [5, 5],
+        }),
+      }).addTo(gameState.map)
 
-    const circle = L.circle([entity.position.lat, entity.position.lng], {
-      radius: config.playerProximityRadius,
-      color: "#00cec9",
-      fillColor: "#00cec9",
-      fillOpacity: 0.2,
-      weight: 1,
-    }).addTo(gameState.map)
+      gameState.playerCircle = circle
+      gameState.playerExactPositionMarker = exactPositionMarker
+      gameState.playerCirclePosition = circlePosition
+      gameState.globalBoundary.setLatLng([entity.position.lat, entity.position.lng])
+    } else {
+      gameState.players.set(entity.id, {
+        data: entity,
+        circle: circle,
+      })
+    }
 
-    // Store references
-    gameState.players.set(entity.id, {
-      data: entity,
-      marker: marker,
-      circle: circle,
-    })
-
-    // Update players list
-    updatePlayersList()
+    circle.bindPopup(entity.name)
   } else {
-    // For cats, show precise position
     const marker = L.marker([entity.position.lat, entity.position.lng], {
       icon: L.divIcon({
         className: "cat-marker",
-        html: `<div style="background-color: #fd79a8; width: 15px; height: 15px; border-radius: 50%; border: 2px solid white;"></div>`,
-        iconSize: [15, 15],
-        iconAnchor: [7.5, 7.5],
+        html: `
+          <div style="background-color: #f59e0b; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"></path>
+              <path d="M8 14v.5"></path>
+              <path d="M16 14v.5"></path>
+              <path d="M11.25 16.25h1.5L12 17l-.75-.75Z"></path>
+            </svg>
+          </div>
+        `,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
       }),
     }).addTo(gameState.map)
 
-    // Store reference
+    marker.bindPopup(entity.name)
+
     gameState.cats.set(entity.id, {
       data: entity,
       marker: marker,
     })
-
-    // Update cats list
-    updateCatsList()
   }
+
+  updatePlayersList()
+  updateCatsList()
 }
 
 // Update player position
 function movePlayer(latlng) {
-  if (!gameState.player) return
-
-  // Update player position
-  gameState.player.position = {
-    lat: latlng.lat,
-    lng: latlng.lng,
-  }
-
-  // Check if player is outside global boundary
-  const distance = gameState.map.distance(latlng, gameState.globalBoundary.getLatLng())
-
-  gameState.isOutsideBoundary = distance > config.globalBoundaryRadius
-
-  // Update player marker and circle
-  if (gameState.playerMarker) {
-    gameState.playerMarker.setLatLng(latlng)
-  }
-
-  if (gameState.playerCircle) {
-    // If outside boundary, center circle on player (penalty)
-    // If inside, offset the circle to hide true position
-    if (gameState.isOutsideBoundary) {
-      gameState.playerCircle.setLatLng(latlng)
-      gameState.playerCircle.setStyle({ color: "#d63031", fillColor: "#d63031" })
-    } else {
-      // Create a random offset within the circle to hide true position
-      const angle = Math.random() * Math.PI * 2
-      const offsetDistance = Math.random() * (config.playerProximityRadius * 0.7)
-      const offsetLat = latlng.lat + (Math.sin(angle) * offsetDistance) / 111000
-      const offsetLng =
-        latlng.lng + (Math.cos(angle) * offsetDistance) / (111000 * Math.cos((latlng.lat * Math.PI) / 180))
-
-      gameState.playerCircle.setLatLng([offsetLat, offsetLng])
-      gameState.playerCircle.setStyle({ color: "#6c5ce7", fillColor: "#6c5ce7" })
-    }
-  }
-
-  // Update player position in database
-  updatePlayerPosition()
+  // Cette fonction ne fait plus rien, car nous n'autorisons plus le déplacement manuel
+  console.log("Le déplacement manuel n'est plus autorisé.")
 }
 
 // Update player position in database
@@ -417,34 +423,65 @@ async function updatePlayerPosition() {
   } else {
     elements.statusIndicator.style.backgroundColor = "var(--success-color)"
     elements.statusText.textContent = "Connected"
+    updateCurrentPlayerPosition(gameState.player.position)
   }
 }
 
-// Start position updates interval
-function startPositionUpdates() {
-  // Update position periodically if player moves
-  setInterval(() => {
-    if (gameState.player) {
-      // Simulate small random movement for demo purposes
-      // In a real app, this would be based on actual user movement
-      const smallRandomLat = (Math.random() - 0.5) * 0.0005
-      const smallRandomLng = (Math.random() - 0.5) * 0.0005
+function updateCurrentPlayerPosition(position) {
+  if (!gameState.player) return
 
-      const newPosition = {
-        lat: gameState.player.position.lat + smallRandomLat,
-        lng: gameState.player.position.lng + smallRandomLng,
+  gameState.player.position = position
+
+  if (gameState.player.type === "player") {
+    const isOutsideBoundary =
+      gameState.map.distance(
+        [position.lat, position.lng],
+        [gameState.playerCirclePosition.lat, gameState.playerCirclePosition.lng],
+      ) > config.playerProximityRadius
+
+    if (isOutsideBoundary) {
+      // Générer une nouvelle position aléatoire pour le cercle
+      const angle = Math.random() * Math.PI * 2
+      const distance = Math.random() * config.playerProximityRadius
+      const newCircleLat = position.lat + (Math.sin(angle) * distance) / 111000
+      const newCircleLng =
+        position.lng + (Math.cos(angle) * distance) / (111000 * Math.cos((position.lat * Math.PI) / 180))
+
+      gameState.playerCirclePosition = { lat: newCircleLat, lng: newCircleLng }
+
+      if (gameState.playerCircle) {
+        gameState.playerCircle.setLatLng([newCircleLat, newCircleLng])
+        gameState.playerCircle.setStyle({
+          color: "#6c5ce7",
+          fillColor: "#6c5ce7",
+        })
       }
-
-      movePlayer(newPosition)
     }
-  }, config.updateInterval)
+
+    if (gameState.playerExactPositionMarker) {
+      gameState.playerExactPositionMarker.setLatLng([position.lat, position.lng])
+    }
+  } else if (gameState.player.type === "cat") {
+    // Mettre à jour la position du marqueur de chat
+    const catData = gameState.cats.get(gameState.player.id)
+    if (catData && catData.marker) {
+      catData.marker.setLatLng([position.lat, position.lng])
+    }
+  }
+
+  gameState.globalBoundary.setLatLng([position.lat, position.lng])
+
+  updatePlayerPosition()
 }
 
 // Subscribe to real-time updates
 function subscribeToUpdates() {
   gameState.subscription = supabase
     .channel("player-changes")
-    .on("postgres_changes", { event: "*", schema: "public", table: "player" }, handleRealtimeUpdate)
+    .on("postgres_changes", { event: "*", schema: "public", table: "player" }, (payload) => {
+      handleRealtimeUpdate(payload)
+      refreshMapAndLists() // Ajoutez cette ligne pour actualiser automatiquement
+    })
     .subscribe()
 }
 
@@ -468,6 +505,38 @@ function handleRealtimeUpdate(payload) {
       handleEntityRemoval(oldRecord)
       break
   }
+
+  // Actualiser la carte et les listes après chaque mise à jour
+  updateMap()
+  updatePlayersList()
+  updateCatsList()
+}
+
+// Ajouter une nouvelle fonction pour actualiser la carte
+function updateMap() {
+  // Supprimer tous les marqueurs et cercles existants, sauf ceux du joueur actuel
+  gameState.map.eachLayer((layer) => {
+    if (layer instanceof L.Marker || layer instanceof L.Circle) {
+      if (
+        !(gameState.player && layer === gameState.playerCircle) &&
+        !(gameState.player && layer === gameState.playerExactPositionMarker)
+      ) {
+        gameState.map.removeLayer(layer)
+      }
+    }
+  })
+
+  // Réajouter tous les joueurs et chats, sauf le joueur actuel
+  gameState.players.forEach((player) => {
+    if (!gameState.player || player.data.name !== gameState.player.name) {
+      addPlayerToMap(player.data)
+    }
+  })
+  gameState.cats.forEach((cat) => {
+    if (!gameState.player || cat.data.name !== gameState.player.name) {
+      addPlayerToMap(cat.data)
+    }
+  })
 }
 
 // Handle new entity
@@ -488,54 +557,18 @@ function handleEntityUpdate(entity) {
   if (entity.type === "player") {
     const playerData = gameState.players.get(entity.id)
     if (playerData) {
-      // Update data
       playerData.data = entity
-
-      // Update circle position with offset to hide true position
-      // Unless player is outside boundary
-      const isOutsideBoundary =
-        gameState.map.distance([entity.position.lat, entity.position.lng], gameState.globalBoundary.getLatLng()) >
-        config.globalBoundaryRadius
-
-      if (isOutsideBoundary) {
-        // Player is outside boundary, show true position
-        playerData.circle.setLatLng([entity.position.lat, entity.position.lng])
-        playerData.circle.setStyle({ color: "#d63031", fillColor: "#d63031" })
-
-        // Show marker
-        if (!gameState.map.hasLayer(playerData.marker)) {
-          playerData.marker.addTo(gameState.map)
-        }
-        playerData.marker.setLatLng([entity.position.lat, entity.position.lng])
-      } else {
-        // Player is inside boundary, hide true position
-        // Create a random offset within the circle
-        const angle = Math.random() * Math.PI * 2
-        const offsetDistance = Math.random() * (config.playerProximityRadius * 0.7)
-        const offsetLat = entity.position.lat + (Math.sin(angle) * offsetDistance) / 111000
-        const offsetLng =
-          entity.position.lng +
-          (Math.cos(angle) * offsetDistance) / (111000 * Math.cos((entity.position.lat * Math.PI) / 180))
-
-        playerData.circle.setLatLng([offsetLat, offsetLng])
-        playerData.circle.setStyle({ color: "#00cec9", fillColor: "#00cec9" })
-
-        // Remove marker to hide exact position
-        if (gameState.map.hasLayer(playerData.marker)) {
-          gameState.map.removeLayer(playerData.marker)
-        }
-      }
+      playerData.circle.bindPopup(`${entity.name} - Score: ${Math.round(entity.score || 0)}`)
     }
   } else if (entity.type === "cat") {
     const catData = gameState.cats.get(entity.id)
     if (catData) {
-      // Update data
       catData.data = entity
-
-      // Update marker position (cats always show exact position)
       catData.marker.setLatLng([entity.position.lat, entity.position.lng])
+      catData.marker.bindPopup(entity.name)
     }
   }
+  updatePlayersList()
 }
 
 // Handle entity removal
@@ -544,11 +577,11 @@ function handleEntityRemoval(entity) {
     const playerData = gameState.players.get(entity.id)
     if (playerData) {
       // Remove from map
-      if (gameState.map.hasLayer(playerData.marker)) {
-        gameState.map.removeLayer(playerData.marker)
-      }
       if (gameState.map.hasLayer(playerData.circle)) {
         gameState.map.removeLayer(playerData.circle)
+      }
+      if (gameState.map.hasLayer(playerData.marker)) {
+        gameState.map.removeLayer(playerData.marker)
       }
 
       // Remove from collection
@@ -607,39 +640,59 @@ async function fetchExistingEntities() {
 // Update players list in sidebar
 function updatePlayersList() {
   elements.playersList.innerHTML = ""
+  const addedPlayers = new Set()
 
-  gameState.players.forEach((player) => {
-    const li = document.createElement("li")
-    li.textContent = player.data.name
-    elements.playersList.appendChild(li)
-  })
-
-  // Add current player to list if exists
+  // Ajouter d'abord le joueur actuel s'il existe et est un joueur
   if (gameState.player && gameState.player.type === "player") {
     const li = document.createElement("li")
     li.textContent = `${gameState.player.name} (You)`
     li.style.fontWeight = "bold"
     elements.playersList.appendChild(li)
+    addedPlayers.add(gameState.player.name)
   }
+
+  // Ajouter les autres joueurs
+  gameState.players.forEach((player) => {
+    if (!addedPlayers.has(player.data.name)) {
+      const li = document.createElement("li")
+      li.textContent = player.data.name
+      if (gameState.player && player.data.name === gameState.player.name) {
+        li.textContent += " (You)"
+        li.style.fontWeight = "bold"
+      }
+      elements.playersList.appendChild(li)
+      addedPlayers.add(player.data.name)
+    }
+  })
 }
 
 // Update cats list in sidebar
 function updateCatsList() {
   elements.catsList.innerHTML = ""
+  const addedCats = new Set()
 
-  gameState.cats.forEach((cat) => {
-    const li = document.createElement("li")
-    li.textContent = cat.data.name
-    elements.catsList.appendChild(li)
-  })
-
-  // Add current player to list if they're a cat
+  // Ajouter d'abord le joueur actuel s'il existe et est un chat
   if (gameState.player && gameState.player.type === "cat") {
     const li = document.createElement("li")
     li.textContent = `${gameState.player.name} (You)`
     li.style.fontWeight = "bold"
     elements.catsList.appendChild(li)
+    addedCats.add(gameState.player.name)
   }
+
+  // Ajouter les autres chats
+  gameState.cats.forEach((cat) => {
+    if (!addedCats.has(cat.data.name)) {
+      const li = document.createElement("li")
+      li.textContent = cat.data.name
+      if (gameState.player && cat.data.name === gameState.player.name) {
+        li.textContent += " (You)"
+        li.style.fontWeight = "bold"
+      }
+      elements.catsList.appendChild(li)
+      addedCats.add(cat.data.name)
+    }
+  })
 }
 
 // Clean up when leaving the page
@@ -690,4 +743,137 @@ document.addEventListener("DOMContentLoaded", async () => {
     alert("Erreur de connexion à la base de données. Veuillez rafraîchir la page et réessayer.")
   }
 })
+
+// Add this new function to calculate and update the score
+async function updateScore() {
+  if (!gameState.player || gameState.player.type !== "player") return
+
+  const now = Date.now()
+  const dt = (now - gameState.lastScoreUpdate) / 1000 // Time difference in seconds
+  gameState.lastScoreUpdate = now
+
+  let maxFactor = 0
+  gameState.cats.forEach((cat) => {
+    const distance = gameState.map.distance(gameState.player.position, cat.data.position)
+    if (distance <= 150) {
+      const factor = (150 - distance) / 150
+      maxFactor = Math.max(maxFactor, factor)
+    }
+  })
+
+  const baseScore = 10 // Points per second when right next to a cat
+  const scoreIncrement = baseScore * maxFactor * dt
+
+  gameState.player.score += scoreIncrement
+
+  // Update score in the database
+  const { error } = await supabase
+    .from("player")
+    .update({ score: Math.round(gameState.player.score) })
+    .eq("id", gameState.player.id)
+
+  if (error) {
+    console.error("Error updating score:", error)
+  } else {
+    updateScoreDisplay()
+  }
+}
+
+// Add this new function to update the score display
+function updateScoreDisplay() {
+  const scoreElement = document.getElementById("player-score")
+  if (scoreElement) {
+    scoreElement.textContent = `Score: ${Math.round(gameState.player.score)}`
+  }
+}
+
+// Modifiez la fonction refreshMapAndLists
+async function refreshMapAndLists() {
+  console.log("Actualisation de la carte et des listes...")
+
+  // Récupérer tous les joueurs et chats
+  const { data: players, error: playersError } = await supabase
+    .from("player")
+    .select("*")
+    .order("score", { ascending: false })
+
+  if (playersError) {
+    console.error("Erreur lors de la récupération des joueurs:", playersError)
+    return
+  }
+
+  // Vider les listes actuelles
+  gameState.players.clear()
+  gameState.cats.clear()
+
+  // Mettre à jour les listes et la carte
+  players.forEach((player) => {
+    if (gameState.player && player.name === gameState.player.name) {
+      // Mettre à jour les données du joueur actuel
+      gameState.player = { ...gameState.player, ...player }
+    } else if (player.type === "player") {
+      gameState.players.set(player.id, { data: player })
+    } else if (player.type === "cat") {
+      gameState.cats.set(player.id, { data: player })
+    }
+  })
+
+  // Actualiser la carte
+  updateMap()
+
+  // Actualiser les listes
+  updatePlayersList()
+  updateCatsList()
+
+  console.log("Carte et listes actualisées")
+}
+
+// Modifiez la fonction switchToCat
+async function switchToCat() {
+  if (!gameState.player || gameState.player.type !== "player") return
+
+  // Appliquer la pénalité de 500 points
+  gameState.player.score = Math.max(0, gameState.player.score - 500)
+
+  // Mettre à jour le type de joueur dans la base de données
+  const { error } = await supabase
+    .from("player")
+    .update({ type: "cat", score: gameState.player.score })
+    .eq("id", gameState.player.id)
+
+  if (error) {
+    console.error("Erreur lors du basculement en chat:", error)
+    alert("Une erreur est survenue lors du basculement en chat. Veuillez réessayer.")
+    return
+  }
+
+  // Mettre à jour l'état du jeu
+  gameState.player.type = "cat"
+
+  // Supprimer le cercle du joueur
+  if (gameState.playerCircle) {
+    gameState.map.removeLayer(gameState.playerCircle)
+    gameState.playerCircle = null
+  }
+
+  // Supprimer le marqueur de position exacte
+  if (gameState.playerExactPositionMarker) {
+    gameState.map.removeLayer(gameState.playerExactPositionMarker)
+    gameState.playerExactPositionMarker = null
+  }
+
+  // Ajouter le marqueur de chat
+  addPlayerToMap(gameState.player)
+
+  // Actualiser la carte et les listes
+  refreshMapAndLists()
+
+  // Masquer le bouton "Devenir un chat"
+  const switchToCatButton = document.getElementById("switch-to-cat")
+  if (switchToCatButton) {
+    switchToCatButton.style.display = "none"
+  }
+
+  alert("Vous êtes maintenant un chat ! Votre score a été réduit de 500 points.")
+}
 
