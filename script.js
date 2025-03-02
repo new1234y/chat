@@ -504,7 +504,7 @@ function updateCurrentPlayerPosition(position) {
     }
   }
 
-  gameState.globalBoundary.setLatLng([position.lat, position.lng])
+  gameState.globalBoundary.setLatLng(config.defaultCenter)
 
   updatePlayerPosition()
 }
@@ -687,60 +687,73 @@ async function fetchExistingEntities() {
 
 // Update players list in sidebar
 function updatePlayersList() {
-  elements.playersList.innerHTML = ""
-  const addedPlayers = new Set()
+  elements.playersList.innerHTML = "";
+  const addedPlayers = new Set();
 
-  // Ajouter d'abord le joueur actuel s'il existe et est un joueur
   if (gameState.player && gameState.player.type === "player") {
-    const li = document.createElement("li")
-    li.textContent = `${gameState.player.name} (You)`
-    li.style.fontWeight = "bold"
-    elements.playersList.appendChild(li)
-    addedPlayers.add(gameState.player.name)
+    const li = document.createElement("li");
+    li.textContent = `${gameState.player.name} (You)`;
+    li.style.fontWeight = "bold";
+    elements.playersList.appendChild(li);
+    addedPlayers.add(gameState.player.name);
   }
 
-  // Ajouter les autres joueurs
   gameState.players.forEach((player) => {
     if (!addedPlayers.has(player.data.name)) {
-      const li = document.createElement("li")
-      li.textContent = player.data.name
+      const li = document.createElement("li");
+      li.textContent = player.data.name;
       if (gameState.player && player.data.name === gameState.player.name) {
-        li.textContent += " (You)"
-        li.style.fontWeight = "bold"
+        li.textContent += " (You)";
+        li.style.fontWeight = "bold";
       }
-      elements.playersList.appendChild(li)
-      addedPlayers.add(player.data.name)
+      
+      // 🔥 Ajout du clic pour centrer la map sur le joueur
+      li.addEventListener("click", () => {
+        if (player.data.position) {
+          gameState.map.setView([player.data.position.lat, player.data.position.lng], 18);
+        }
+      });
+
+      elements.playersList.appendChild(li);
+      addedPlayers.add(player.data.name);
     }
-  })
+  });
 }
+
 
 // Update cats list in sidebar
 function updateCatsList() {
-  elements.catsList.innerHTML = ""
-  const addedCats = new Set()
+  elements.catsList.innerHTML = "";
+  const addedCats = new Set();
 
-  // Ajouter d'abord le joueur actuel s'il existe et est un chat
   if (gameState.player && gameState.player.type === "cat") {
-    const li = document.createElement("li")
-    li.textContent = `${gameState.player.name} (You)`
-    li.style.fontWeight = "bold"
-    elements.catsList.appendChild(li)
-    addedCats.add(gameState.player.name)
+    const li = document.createElement("li");
+    li.textContent = `${gameState.player.name} (You)`;
+    li.style.fontWeight = "bold";
+    elements.catsList.appendChild(li);
+    addedCats.add(gameState.player.name);
   }
 
-  // Ajouter les autres chats
   gameState.cats.forEach((cat) => {
     if (!addedCats.has(cat.data.name)) {
-      const li = document.createElement("li")
-      li.textContent = cat.data.name
+      const li = document.createElement("li");
+      li.textContent = cat.data.name;
       if (gameState.player && cat.data.name === gameState.player.name) {
-        li.textContent += " (You)"
-        li.style.fontWeight = "bold"
+        li.textContent += " (You)";
+        li.style.fontWeight = "bold";
       }
-      elements.catsList.appendChild(li)
-      addedCats.add(cat.data.name)
+
+      // 🔥 Ajout du clic pour centrer la map sur le chat
+      li.addEventListener("click", () => {
+        if (cat.data.position) {
+          gameState.map.setView([cat.data.position.lat, cat.data.position.lng], 18);
+        }
+      });
+
+      elements.catsList.appendChild(li);
+      addedCats.add(cat.data.name);
     }
-  })
+  });
 }
 
 // Clean up when leaving the page
@@ -1002,75 +1015,6 @@ async function switchToCat() {
   clearInterval(scoreInterval)
 
   alert("Vous êtes maintenant un chat ! Votre score a été réduit de 500 points.")
-}
-
-// Modifiez la fonction refreshMapAndLists
-async function refreshMapAndLists() {
-  console.log("Actualisation de la carte et des listes...");
-
-  // Redemande les settings depuis la DB
-  const settings = await loadGameSettings();
-  if (settings) {
-    // Mise à jour de l'objet config avec les nouvelles valeurs
-    config.defaultCenter = [settings.map_center_lat, settings.map_center_lng];
-    config.globalBoundaryRadius = settings.global_boundary_radius;
-    config.defaultZoom = settings.map_zoom_level;
-    config.playerProximityRadius = settings.player_proximity_radius;
-    config.updateInterval = settings.update_interval;
-    console.log("Nouveaux settings récupérés :", config);
-  } else {
-    console.warn("Impossible de charger les settings, utilisation des valeurs par défaut.");
-  }
-
-  // Mise à jour du cercle global avec la nouvelle position et le nouveau rayon
-  if (gameState.globalBoundary) {
-    gameState.globalBoundary.setLatLng(config.defaultCenter);
-    gameState.globalBoundary.setRadius(config.globalBoundaryRadius);
-  } else {
-    gameState.globalBoundary = L.circle(config.defaultCenter, {
-      radius: config.globalBoundaryRadius,
-      color: "#6c5ce7",
-      fillColor: "#6c5ce7",
-      fillOpacity: 0.1,
-      weight: 2,
-      dashArray: "5, 10",
-    }).addTo(gameState.map);
-  }
-
-  // Actualisation des joueurs, chats et listes comme avant
-  const { data: players, error: playersError } = await supabase
-    .from("player")
-    .select("*")
-    .order("score", { ascending: false });
-  
-  if (playersError) {
-    console.error("Erreur lors de la récupération des joueurs:", playersError);
-    return;
-  }
-
-  // Vider les listes actuelles
-  gameState.players.clear();
-  gameState.cats.clear();
-
-  // Mise à jour des listes et de la carte avec les nouveaux joueurs/chats
-  players.forEach((player) => {
-    if (gameState.player && player.name === gameState.player.name) {
-      gameState.player = { ...gameState.player, ...player };
-      if (player.type === "cat" && !gameState.playerCatMarker) {
-        addCatMarker(player);
-      }
-    } else if (player.type === "player") {
-      gameState.players.set(player.id, { data: player });
-    } else if (player.type === "cat") {
-      gameState.cats.set(player.id, { data: player });
-    }
-  });
-
-  updateMap();
-  updatePlayersList();
-  updateCatsList();
-
-  console.log("Carte et listes actualisées");
 }
 
 // Ajoutez cette nouvelle fonction pour démarrer l'intervalle de score
