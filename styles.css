@@ -150,6 +150,8 @@ body {
   cursor: pointer;
   font-weight: 500;
   transition: var(--transition);
+  margin-top: 10px; /*Ajustement général*/
+  width: 100%; /*Ajustement général*/
 }
 
 .btn-secondary:hover {
@@ -363,12 +365,32 @@ body {
 
   .sidebar {
     width: 100%;
-    height: 40vh;
-    min-height: 300px;
+    height: auto;
+    max-height: 50vh;
+    overflow-y: auto;
   }
 
   .map-container {
-    height: 60vh;
+    height: 50vh;
+  }
+
+  .game-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+  }
+
+  .game-controls button {
+    margin: 5px;
+  }
+
+  .player-form,
+  .players-list,
+  .cats-list {
+    margin-bottom: 10px;
   }
 }
 
@@ -390,5 +412,13 @@ body {
 #switch-to-cat {
   margin-top: 10px;
   width: 100%;
+  display: none; /*Ajustement général*/
+}
+
+/* Ajoutez ce style pour le bouton "Quitter le jeu" */
+#quit-game {
+  margin-top: 10px;
+  width: 100%;
+  display: none; /*Ajustement général*/
 }
 

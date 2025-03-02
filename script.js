@@ -4,13 +4,32 @@ const supabaseKey =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hZHd1YWNwb3VwcGR5bnNzeHJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2NzMyMTEsImV4cCI6MjA1NjI0OTIxMX0.MF7Ijl8SHm7wzKt8XiD3EQVqikLaVqkhPAYkqiJHisA"
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
 
-// Game configuration
+// Config par défaut (au cas où le chargement de la DB planterait)
 const config = {
-  defaultCenter: [48.8566, 2.3522], // Paris as default center
+  defaultCenter: [48.8566, 2.3522],
   defaultZoom: 15,
-  globalBoundaryRadius: 1000, // meters
-  playerProximityRadius: 200, // meters
-  updateInterval: 2000, // ms
+  globalBoundaryRadius: 1000,
+  playerProximityRadius: 200,
+  updateInterval: 2000,
+}
+
+// Fonction pour charger les settings depuis la table "game_settings"
+async function loadGameSettings() {
+  try {
+    const { data: settings, error } = await supabase
+      .from("game_settings")
+      .select("*")
+      .limit(1)
+      .single()
+    if (error) {
+      console.error("Erreur lors du chargement des game settings :", error)
+      return null
+    }
+    return settings
+  } catch (err) {
+    console.error("Erreur lors du chargement des game settings :", err)
+    return null
+  }
 }
 
 // Game state
@@ -24,6 +43,7 @@ const gameState = {
   playerCircle: null,
   playerExactPositionMarker: null, // Ajout pour le marqueur de position exacte
   playerCirclePosition: null, // Ajout pour la position du cercle
+  playerCatMarker: null, // Ajout pour le marqueur de chat du joueur
   subscription: null,
   isOutsideBoundary: false,
   lastScoreUpdate: Date.now(),
@@ -42,6 +62,10 @@ const elements = {
   statusIndicator: document.getElementById("status-indicator"),
   statusText: document.getElementById("status-text"),
 }
+
+// Ajoutez ces variables globales au début du fichier
+let scoreInterval
+let pointsToAdd = 0
 
 // Initialize the game
 function initGame() {
@@ -164,6 +188,12 @@ function setupEventListeners() {
   const switchToCatButton = document.getElementById("switch-to-cat")
   if (switchToCatButton) {
     switchToCatButton.addEventListener("click", switchToCat)
+  }
+
+  // Ajoutez cet écouteur d'événements pour le bouton "Quitter le jeu"
+  const quitButton = document.getElementById("quit-game")
+  if (quitButton) {
+    quitButton.addEventListener("click", quitGame)
   }
 }
 
@@ -320,6 +350,15 @@ async function joinGame(name, type, position) {
       switchToCatButton.style.display = type === "player" ? "block" : "none"
     }
 
+    // Afficher le bouton "Quitter le jeu"
+    const quitButton = document.getElementById("quit-game")
+    if (quitButton) {
+      quitButton.style.display = "block"
+    }
+
+    // Démarrer l'intervalle de score
+    startScoreInterval()
+
     console.log("Successfully joined game")
   } catch (error) {
     console.error("Error in joinGame:", error)
@@ -357,11 +396,6 @@ function addPlayerToMap(entity) {
           iconAnchor: [5, 5],
         }),
       }).addTo(gameState.map)
-
-      gameState.playerCircle = circle
-      gameState.playerExactPositionMarker = exactPositionMarker
-      gameState.playerCirclePosition = circlePosition
-      gameState.globalBoundary.setLatLng([entity.position.lat, entity.position.lng])
     } else {
       gameState.players.set(entity.id, {
         data: entity,
@@ -463,9 +497,10 @@ function updateCurrentPlayerPosition(position) {
     }
   } else if (gameState.player.type === "cat") {
     // Mettre à jour la position du marqueur de chat
-    const catData = gameState.cats.get(gameState.player.id)
-    if (catData && catData.marker) {
-      catData.marker.setLatLng([position.lat, position.lng])
+    if (gameState.playerCatMarker) {
+      gameState.playerCatMarker.setLatLng([position.lat, position.lng])
+    } else {
+      addCatMarker(gameState.player)
     }
   }
 
@@ -512,31 +547,44 @@ function handleRealtimeUpdate(payload) {
   updateCatsList()
 }
 
-// Ajouter une nouvelle fonction pour actualiser la carte
+// Modification de updateMap pour éviter de supprimer le cercle global
 function updateMap() {
-  // Supprimer tous les marqueurs et cercles existants, sauf ceux du joueur actuel
   gameState.map.eachLayer((layer) => {
     if (layer instanceof L.Marker || layer instanceof L.Circle) {
       if (
-        !(gameState.player && layer === gameState.playerCircle) &&
-        !(gameState.player && layer === gameState.playerExactPositionMarker)
+        (gameState.globalBoundary && layer === gameState.globalBoundary) ||
+        (gameState.player && layer === gameState.playerCircle) ||
+        (gameState.player && layer === gameState.playerExactPositionMarker) ||
+        (gameState.player && layer === gameState.playerCatMarker)
       ) {
-        gameState.map.removeLayer(layer)
+        return;
       }
+      gameState.map.removeLayer(layer);
     }
-  })
+  });
 
-  // Réajouter tous les joueurs et chats, sauf le joueur actuel
   gameState.players.forEach((player) => {
     if (!gameState.player || player.data.name !== gameState.player.name) {
-      addPlayerToMap(player.data)
+      addPlayerToMap(player.data);
     }
-  })
+  });
   gameState.cats.forEach((cat) => {
     if (!gameState.player || cat.data.name !== gameState.player.name) {
-      addPlayerToMap(cat.data)
+      addPlayerToMap(cat.data);
     }
-  })
+  });
+
+  if (gameState.player) {
+    if (gameState.player.type === "player") {
+      if (!gameState.playerCircle || !gameState.playerExactPositionMarker) {
+        addPlayerToMap(gameState.player);
+      }
+    } else if (gameState.player.type === "cat") {
+      if (!gameState.playerCatMarker) {
+        addCatMarker(gameState.player);
+      }
+    }
+  }
 }
 
 // Handle new entity
@@ -738,6 +786,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   const isConnected = await checkSupabaseConnection()
 
   if (isConnected) {
+    // Charge les paramètres de la DB et met à jour l'objet config
+    const settings = await loadGameSettings()
+    if (settings) {
+      config.defaultCenter = [settings.map_center_lat, settings.map_center_lng]
+      config.defaultZoom = settings.map_zoom_level
+      config.playerProximityRadius = settings.player_proximity_radius
+      config.globalBoundaryRadius = settings.global_boundary_radius
+      config.updateInterval = settings.update_interval
+      console.log("Game settings chargés depuis la DB :", config)
+    } else {
+      console.warn("Utilisation des settings par défaut.")
+    }
     initGame()
   } else {
     alert("Erreur de connexion à la base de données. Veuillez rafraîchir la page et réessayer.")
@@ -764,7 +824,8 @@ async function updateScore() {
   const baseScore = 10 // Points per second when right next to a cat
   const scoreIncrement = baseScore * maxFactor * dt
 
-  gameState.player.score += scoreIncrement
+  gameState.player.score += scoreIncrement + pointsToAdd
+  pointsToAdd = 0 // Réinitialiser les points à ajouter
 
   // Update score in the database
   const { error } = await supabase
@@ -789,43 +850,97 @@ function updateScoreDisplay() {
 
 // Modifiez la fonction refreshMapAndLists
 async function refreshMapAndLists() {
-  console.log("Actualisation de la carte et des listes...")
+  console.log("Actualisation de la carte et des listes...");
 
-  // Récupérer tous les joueurs et chats
+  // Recharger les settings depuis la DB
+  const settings = await loadGameSettings();
+  if (settings) {
+    config.defaultCenter = [settings.map_center_lat, settings.map_center_lng];
+    config.globalBoundaryRadius = settings.global_boundary_radius;
+    config.defaultZoom = settings.map_zoom_level;
+    config.playerProximityRadius = settings.player_proximity_radius;
+    config.updateInterval = settings.update_interval;
+    console.log("Game settings rechargés :", config);
+  } else {
+    console.warn("Utilisation des settings par défaut.");
+  }
+
+  // Mettre à jour le cercle global avec les nouvelles valeurs
+  if (gameState.globalBoundary) {
+    gameState.globalBoundary.setLatLng(config.defaultCenter);
+    gameState.globalBoundary.setRadius(config.globalBoundaryRadius);
+  } else {
+    gameState.globalBoundary = L.circle(config.defaultCenter, {
+      radius: config.globalBoundaryRadius,
+      color: "#6c5ce7",
+      fillColor: "#6c5ce7",
+      fillOpacity: 0.1,
+      weight: 2,
+      dashArray: "5, 10",
+    }).addTo(gameState.map);
+  }
+
+  // Ensuite, on continue avec l'actualisation classique (joueurs, chats, etc.)
   const { data: players, error: playersError } = await supabase
     .from("player")
     .select("*")
-    .order("score", { ascending: false })
+    .order("score", { ascending: false });
 
   if (playersError) {
-    console.error("Erreur lors de la récupération des joueurs:", playersError)
-    return
+    console.error("Erreur lors de la récupération des joueurs:", playersError);
+    return;
   }
 
   // Vider les listes actuelles
-  gameState.players.clear()
-  gameState.cats.clear()
+  gameState.players.clear();
+  gameState.cats.clear();
 
   // Mettre à jour les listes et la carte
   players.forEach((player) => {
     if (gameState.player && player.name === gameState.player.name) {
-      // Mettre à jour les données du joueur actuel
-      gameState.player = { ...gameState.player, ...player }
+      gameState.player = { ...gameState.player, ...player };
+      if (player.type === "cat" && !gameState.playerCatMarker) {
+        addCatMarker(player);
+      }
     } else if (player.type === "player") {
-      gameState.players.set(player.id, { data: player })
+      gameState.players.set(player.id, { data: player });
     } else if (player.type === "cat") {
-      gameState.cats.set(player.id, { data: player })
+      gameState.cats.set(player.id, { data: player });
     }
-  })
+  });
 
-  // Actualiser la carte
-  updateMap()
+  updateMap();
+  updatePlayersList();
+  updateCatsList();
 
-  // Actualiser les listes
-  updatePlayersList()
-  updateCatsList()
+  console.log("Carte et listes actualisées");
+}
 
-  console.log("Carte et listes actualisées")
+// Ajoutez cette nouvelle fonction pour ajouter un marqueur de chat
+function addCatMarker(player) {
+  if (gameState.playerCatMarker) {
+    gameState.map.removeLayer(gameState.playerCatMarker)
+  }
+
+  gameState.playerCatMarker = L.marker([player.position.lat, player.position.lng], {
+    icon: L.divIcon({
+      className: "cat-marker",
+      html: `
+        <div style="background-color: #f59e0b; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"></path>
+            <path d="M8 14v.5"></path>
+            <path d="M16 14v.5"></path>
+            <path d="M11.25 16.25h1.5L12 17l-.75-.75Z"></path>
+          </svg>
+        </div>
+      `,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+    }),
+  }).addTo(gameState.map)
+
+  gameState.playerCatMarker.bindPopup(player.name)
 }
 
 // Modifiez la fonction switchToCat
@@ -835,10 +950,10 @@ async function switchToCat() {
   // Appliquer la pénalité de 500 points
   gameState.player.score = Math.max(0, gameState.player.score - 500)
 
-  // Mettre à jour le type de joueur dans la base de données
+  // Mettre à jour le type de joueur et le score dans la base de données
   const { error } = await supabase
     .from("player")
-    .update({ type: "cat", score: gameState.player.score })
+    .update({ type: "cat", score: Math.round(gameState.player.score) })
     .eq("id", gameState.player.id)
 
   if (error) {
@@ -863,17 +978,119 @@ async function switchToCat() {
   }
 
   // Ajouter le marqueur de chat
-  addPlayerToMap(gameState.player)
+  addCatMarker(gameState.player)
+
+  // Mettre à jour gameState.cats
+  gameState.cats.set(gameState.player.id, {
+    data: gameState.player,
+    marker: gameState.playerCatMarker,
+  })
+
+  // Supprimer le joueur de gameState.players
+  gameState.players.delete(gameState.player.id)
 
   // Actualiser la carte et les listes
   refreshMapAndLists()
 
-  // Masquer le bouton "Devenir un chat"
+  // Masquer le bouton "Devenir un chat" et afficher le bouton "Quitter le jeu"
   const switchToCatButton = document.getElementById("switch-to-cat")
-  if (switchToCatButton) {
-    switchToCatButton.style.display = "none"
-  }
+  const quitGameButton = document.getElementById("quit-game")
+  if (switchToCatButton) switchToCatButton.style.display = "none"
+  if (quitGameButton) quitGameButton.style.display = "block"
+
+  // Arrêter l'intervalle de score
+  clearInterval(scoreInterval)
 
   alert("Vous êtes maintenant un chat ! Votre score a été réduit de 500 points.")
+}
+
+// Modifiez la fonction refreshMapAndLists
+async function refreshMapAndLists() {
+  console.log("Actualisation de la carte et des listes...");
+
+  // Redemande les settings depuis la DB
+  const settings = await loadGameSettings();
+  if (settings) {
+    // Mise à jour de l'objet config avec les nouvelles valeurs
+    config.defaultCenter = [settings.map_center_lat, settings.map_center_lng];
+    config.globalBoundaryRadius = settings.global_boundary_radius;
+    config.defaultZoom = settings.map_zoom_level;
+    config.playerProximityRadius = settings.player_proximity_radius;
+    config.updateInterval = settings.update_interval;
+    console.log("Nouveaux settings récupérés :", config);
+  } else {
+    console.warn("Impossible de charger les settings, utilisation des valeurs par défaut.");
+  }
+
+  // Mise à jour du cercle global avec la nouvelle position et le nouveau rayon
+  if (gameState.globalBoundary) {
+    gameState.globalBoundary.setLatLng(config.defaultCenter);
+    gameState.globalBoundary.setRadius(config.globalBoundaryRadius);
+  } else {
+    gameState.globalBoundary = L.circle(config.defaultCenter, {
+      radius: config.globalBoundaryRadius,
+      color: "#6c5ce7",
+      fillColor: "#6c5ce7",
+      fillOpacity: 0.1,
+      weight: 2,
+      dashArray: "5, 10",
+    }).addTo(gameState.map);
+  }
+
+  // Actualisation des joueurs, chats et listes comme avant
+  const { data: players, error: playersError } = await supabase
+    .from("player")
+    .select("*")
+    .order("score", { ascending: false });
+  
+  if (playersError) {
+    console.error("Erreur lors de la récupération des joueurs:", playersError);
+    return;
+  }
+
+  // Vider les listes actuelles
+  gameState.players.clear();
+  gameState.cats.clear();
+
+  // Mise à jour des listes et de la carte avec les nouveaux joueurs/chats
+  players.forEach((player) => {
+    if (gameState.player && player.name === gameState.player.name) {
+      gameState.player = { ...gameState.player, ...player };
+      if (player.type === "cat" && !gameState.playerCatMarker) {
+        addCatMarker(player);
+      }
+    } else if (player.type === "player") {
+      gameState.players.set(player.id, { data: player });
+    } else if (player.type === "cat") {
+      gameState.cats.set(player.id, { data: player });
+    }
+  });
+
+  updateMap();
+  updatePlayersList();
+  updateCatsList();
+
+  console.log("Carte et listes actualisées");
+}
+
+// Ajoutez cette nouvelle fonction pour démarrer l'intervalle de score
+function startScoreInterval() {
+  scoreInterval = setInterval(() => {
+    pointsToAdd += 50
+  }, 30000)
+}
+
+// Ajoutez cette nouvelle fonction pour quitter le jeu
+async function quitGame() {
+  if (gameState.player) {
+    try {
+      await supabase.from("player").delete().eq("id", gameState.player.id)
+      clearInterval(scoreInterval)
+      location.reload()
+    } catch (error) {
+      console.error("Erreur lors de la suppression du joueur:", error)
+      alert("Une erreur est survenue lors de la déconnexion. Veuillez réessayer.")
+    }
+  }
 }
 
