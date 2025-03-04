@@ -1,8 +1,12 @@
 // Initialize Supabase client
 const supabaseUrl = "https://oadwuacpouppdynssxrw.supabase.co"
-const supabaseKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hZHd1YWNwb3VwcGR5bnNzeHJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2NzMyMTEsImV4cCI6MjA1NjI0OTIxMX0.MF7Ijl8SHm7wzKt8XiD3EQVqikLaVqkhPAYkqiJHisA"
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hZHd1YWNwb3VwcGR5bnNzeHJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2NzMyMTEsImV4cCI6MjA1NjI0OTIxMX0.MF7Ijl8SHm7wzKt8XiD3EQVqikLaVqkhPAYkqiJHisA"
+
+// Correction : Ajout de l'option pour inclure le header "apikey"
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey, {
+  headers: { apikey: supabaseKey }
+})
+
 
 // Config par défaut (au cas où le chargement de la DB planterait)
 const config = {
@@ -16,11 +20,7 @@ const config = {
 // Fonction pour charger les settings depuis la table "game_settings"
 async function loadGameSettings() {
   try {
-    const { data: settings, error } = await supabase
-      .from("game_settings")
-      .select("*")
-      .limit(1)
-      .single()
+    const { data: settings, error } = await supabase.from("game_settings").select("*").limit(1).single()
     if (error) {
       console.error("Erreur lors du chargement des game settings :", error)
       return null
@@ -47,6 +47,7 @@ const gameState = {
   subscription: null,
   isOutsideBoundary: false,
   lastScoreUpdate: Date.now(),
+  inZone: true, // Add inZone status for the current player
 }
 
 // DOM Elements
@@ -65,7 +66,7 @@ const elements = {
 
 // Ajoutez ces variables globales au début du fichier
 let scoreInterval
-let pointsToAdd = 0
+const pointsToAdd = 0
 
 // Initialize the game
 function initGame() {
@@ -244,12 +245,63 @@ async function handleJoinGame(e) {
 
     // Utiliser la géolocalisation en continu
     if ("geolocation" in navigator) {
+      // Utiliser une position par défaut en cas d'erreur de géolocalisation
+      const useDefaultPosition = () => {
+        console.log("Utilisation de la position par défaut")
+        const defaultPosition = {
+          lat: config.defaultCenter[0],
+          lng: config.defaultCenter[1],
+        }
+
+        // Initialize playerCirclePosition with the default position
+        gameState.playerCirclePosition = {
+          lat: defaultPosition.lat,
+          lng: defaultPosition.lng,
+        }
+
+        // Initialize isOutsideBoundary
+        gameState.isOutsideBoundary = false
+
+        joinGame(name, type, defaultPosition).then(() => {
+          hideLoading()
+
+          // Essayer de continuer à obtenir la position réelle
+          navigator.geolocation.watchPosition(
+            (newPosition) => {
+              const newPlayerPosition = {
+                lat: newPosition.coords.latitude,
+                lng: newPosition.coords.longitude,
+              }
+
+              if (gameState.player) {
+                gameState.player.position = newPlayerPosition
+                updateCurrentPlayerPosition(newPlayerPosition)
+              }
+            },
+            (error) => {
+              console.warn("Geolocation watch error:", error)
+            },
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
+          )
+        })
+      }
+
+      // Essayer d'obtenir la position actuelle
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const playerPosition = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           }
+
+          // Initialize playerCirclePosition with the initial position
+          gameState.playerCirclePosition = {
+            lat: playerPosition.lat,
+            lng: playerPosition.lng,
+          }
+
+          // Initialize isOutsideBoundary
+          gameState.isOutsideBoundary = false
 
           await joinGame(name, type, playerPosition)
           hideLoading()
@@ -263,7 +315,7 @@ async function handleJoinGame(e) {
 
               if (gameState.player) {
                 gameState.player.position = newPlayerPosition
-                updatePlayerPosition()
+                updateCurrentPlayerPosition(newPlayerPosition)
               }
             },
             (error) => {
@@ -274,8 +326,8 @@ async function handleJoinGame(e) {
         },
         (error) => {
           console.warn("Geolocation error:", error)
-          alert("Impossible d'obtenir votre position. Veuillez activer la géolocalisation et réessayer.")
-          hideLoading()
+          // Utiliser la position par défaut en cas d'erreur
+          useDefaultPosition()
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
       )
@@ -297,13 +349,20 @@ async function joinGame(name, type, position) {
   // Generate a unique ID
   const playerId = Date.now().toString()
 
-  // Create player object
+  // Check if the initial position is inside the global boundary
+  const isInZone = gameState.map
+    ? gameState.map.distance([position.lat, position.lng], [config.defaultCenter[0], config.defaultCenter[1]]) <=
+      config.globalBoundaryRadius
+    : true
+
+  // Create player object with inZone status
   const playerData = {
     id: playerId,
     name: name,
     type: type,
     position: position,
     score: 0, // Initialiser le score à 0
+    inZone: isInZone, // Add inZone status
   }
 
   try {
@@ -318,6 +377,7 @@ async function joinGame(name, type, position) {
 
     // Set player in game state
     gameState.player = playerData
+    gameState.inZone = isInZone
 
     // Update UI
     elements.joinForm.style.display = "none"
@@ -372,38 +432,67 @@ function addPlayerToMap(entity) {
   const isPlayer = entity.type === "player"
 
   if (isPlayer) {
-    let circlePosition
-    if (isCurrentPlayer) {
-      circlePosition = gameState.playerCirclePosition || entity.position
-    } else {
-      circlePosition = entity.position
-    }
+    // Check if the player is in zone (default to true if not specified)
+    const isInZone = entity.inZone !== undefined ? entity.inZone : true
 
-    const circle = L.circle([circlePosition.lat, circlePosition.lng], {
-      radius: config.playerProximityRadius,
-      color: isCurrentPlayer ? "#6c5ce7" : "#00cec9",
-      fillColor: isCurrentPlayer ? "#6c5ce7" : "#00cec9",
-      fillOpacity: 0.2,
-      weight: 1,
-    }).addTo(gameState.map)
-
-    if (isCurrentPlayer) {
+    // If player is outside the zone, show exact position
+    if (!isInZone) {
       const exactPositionMarker = L.marker([entity.position.lat, entity.position.lng], {
         icon: L.divIcon({
           className: "player-exact-position",
-          html: `<div style="width: 10px; height: 10px; background-color: #6c5ce7; border-radius: 50%;"></div>`,
+          html: `<div style="width: 10px; height: 10px; background-color: ${isCurrentPlayer ? "#6c5ce7" : "#00cec9"}; border-radius: 50%;"></div>`,
           iconSize: [10, 10],
           iconAnchor: [5, 5],
         }),
       }).addTo(gameState.map)
-    } else {
-      gameState.players.set(entity.id, {
-        data: entity,
-        circle: circle,
-      })
-    }
 
-    circle.bindPopup(entity.name)
+      if (isCurrentPlayer) {
+        gameState.playerExactPositionMarker = exactPositionMarker
+      } else {
+        gameState.players.set(entity.id, {
+          data: entity,
+          marker: exactPositionMarker,
+        })
+      }
+
+      exactPositionMarker.bindPopup(entity.name)
+    } else {
+      // Inside zone - show circle
+      let circlePosition
+      if (isCurrentPlayer) {
+        circlePosition = gameState.playerCirclePosition || entity.position
+      } else {
+        circlePosition = entity.position
+      }
+
+      const circle = L.circle([circlePosition.lat, circlePosition.lng], {
+        radius: config.playerProximityRadius,
+        color: isCurrentPlayer ? "#6c5ce7" : "#00cec9",
+        fillColor: isCurrentPlayer ? "#6c5ce7" : "#00cec9",
+        fillOpacity: 0.2,
+        weight: 1,
+      }).addTo(gameState.map)
+
+      if (isCurrentPlayer) {
+        const exactPositionMarker = L.marker([entity.position.lat, entity.position.lng], {
+          icon: L.divIcon({
+            className: "player-exact-position",
+            html: `<div style="width: 10px; height: 10px; background-color: #6c5ce7; border-radius: 50%;"></div>`,
+            iconSize: [10, 10],
+            iconAnchor: [5, 5],
+          }),
+        }).addTo(gameState.map)
+        gameState.playerExactPositionMarker = exactPositionMarker
+        gameState.playerCircle = circle
+      } else {
+        gameState.players.set(entity.id, {
+          data: entity,
+          circle: circle,
+        })
+      }
+
+      circle.bindPopup(entity.name)
+    }
   } else {
     const marker = L.marker([entity.position.lat, entity.position.lng], {
       icon: L.divIcon({
@@ -447,7 +536,7 @@ async function updatePlayerPosition() {
 
   const { error } = await supabase
     .from("player")
-    .update({ position: gameState.player.position })
+    .update({ position: gameState.player.position, inZone: gameState.inZone })
     .eq("id", gameState.player.id)
 
   if (error) {
@@ -457,56 +546,170 @@ async function updatePlayerPosition() {
   } else {
     elements.statusIndicator.style.backgroundColor = "var(--success-color)"
     elements.statusText.textContent = "Connected"
-    updateCurrentPlayerPosition(gameState.player.position)
   }
 }
 
+// Remove the refresh button from the HTML by hiding it
+// Find the refresh button element and set its display to none
+const refreshButton = document.getElementById("refresh-map")
+if (refreshButton) {
+  refreshButton.style.display = "none"
+}
+
+// Set up an interval to automatically refresh the map and lists
+setInterval(refreshMapAndLists, 2000)
+
+// Modifier la fonction updateCurrentPlayerPosition pour corriger l'affichage des positions
 function updateCurrentPlayerPosition(position) {
   if (!gameState.player) return
 
   gameState.player.position = position
 
+  // Vérifier si le joueur est en dehors du cercle global
+  const isOutsideGlobalBoundary =
+    gameState.map.distance([position.lat, position.lng], [config.defaultCenter[0], config.defaultCenter[1]]) >
+    config.globalBoundaryRadius
+
+  // Stocker l'état précédent pour détecter les changements
+  const wasOutsideBoundary = gameState.isOutsideBoundary
+  gameState.isOutsideBoundary = isOutsideGlobalBoundary
+
+  // Update inZone status
+  const newInZone = !isOutsideGlobalBoundary
+  const inZoneChanged = gameState.inZone !== newInZone
+  gameState.inZone = newInZone
+  gameState.player.inZone = newInZone
+
+  // Si le joueur est un joueur (pas un chat)
   if (gameState.player.type === "player") {
-    const isOutsideBoundary =
-      gameState.map.distance(
-        [position.lat, position.lng],
-        [gameState.playerCirclePosition.lat, gameState.playerCirclePosition.lng],
-      ) > config.playerProximityRadius
-
-    if (isOutsideBoundary) {
-      // Générer une nouvelle position aléatoire pour le cercle
-      const angle = Math.random() * Math.PI * 2
-      const distance = Math.random() * config.playerProximityRadius
-      const newCircleLat = position.lat + (Math.sin(angle) * distance) / 111000
-      const newCircleLng =
-        position.lng + (Math.cos(angle) * distance) / (111000 * Math.cos((position.lat * Math.PI) / 180))
-
-      gameState.playerCirclePosition = { lat: newCircleLat, lng: newCircleLng }
-
+    // Si le joueur vient d'entrer ou de sortir de la limite, mettre à jour l'affichage
+    if (wasOutsideBoundary !== isOutsideGlobalBoundary || inZoneChanged) {
+      // Supprimer les marqueurs/cercles existants
       if (gameState.playerCircle) {
-        gameState.playerCircle.setLatLng([newCircleLat, newCircleLng])
-        gameState.playerCircle.setStyle({
+        gameState.map.removeLayer(gameState.playerCircle)
+        gameState.playerCircle = null
+      }
+      if (gameState.playerExactPositionMarker) {
+        gameState.map.removeLayer(gameState.playerExactPositionMarker)
+        gameState.playerExactPositionMarker = null
+      }
+
+      // Update inZone status in database
+      updatePlayerInZoneStatus(newInZone)
+    }
+
+    if (isOutsideGlobalBoundary) {
+      // En dehors de la limite globale - montrer la position exacte
+      if (!gameState.playerExactPositionMarker) {
+        gameState.playerExactPositionMarker = L.marker([position.lat, position.lng], {
+          icon: L.divIcon({
+            className: "player-exact-position",
+            html: `<div style="width: 10px; height: 10px; background-color: #6c5ce7; border-radius: 50%;"></div>`,
+            iconSize: [10, 10],
+            iconAnchor: [5, 5],
+          }),
+        }).addTo(gameState.map)
+      } else {
+        gameState.playerExactPositionMarker.setLatLng([position.lat, position.lng])
+      }
+
+      // Supprimer le cercle s'il existe
+      if (gameState.playerCircle) {
+        gameState.map.removeLayer(gameState.playerCircle)
+        gameState.playerCircle = null
+      }
+    } else {
+      // À l'intérieur de la limite globale - montrer le cercle
+      if (!gameState.playerCirclePosition) {
+        // Initialiser la position du cercle si elle n'est pas définie
+        gameState.playerCirclePosition = position
+      }
+
+      // Si le joueur vient de rentrer dans la zone, générer une nouvelle position aléatoire pour le cercle
+      if (wasOutsideBoundary) {
+        const angle = Math.random() * Math.PI * 2
+        const distance = Math.random() * config.playerProximityRadius
+        const newCircleLat = position.lat + (Math.sin(angle) * distance) / 111000
+        const newCircleLng =
+          position.lng + (Math.cos(angle) * distance) / (111000 * Math.cos((position.lat * Math.PI) / 180))
+        gameState.playerCirclePosition = { lat: newCircleLat, lng: newCircleLng }
+      } else {
+        // Calculer la distance entre la position du joueur et le centre du cercle
+        const distanceToCircleCenter = gameState.playerCirclePosition
+          ? gameState.map.distance(
+              [position.lat, position.lng],
+              [gameState.playerCirclePosition.lat, gameState.playerCirclePosition.lng],
+            )
+          : 0
+
+        // Calculer la distance au bord du cercle (rayon - distance au centre)
+        const distanceToBorder = config.playerProximityRadius - distanceToCircleCenter
+
+        // Si on est à moins de 2 mètres du bord ou si le cercle n'existe pas encore
+        if (distanceToBorder < 2 || !gameState.playerCircle) {
+          // Générer une nouvelle position pour le cercle centrée sur la position actuelle du joueur
+          gameState.playerCirclePosition = { lat: position.lat, lng: position.lng }
+        }
+      }
+
+      // Créer ou mettre à jour le cercle avec le rayon actuel de config
+      if (!gameState.playerCircle) {
+        gameState.playerCircle = L.circle([gameState.playerCirclePosition.lat, gameState.playerCirclePosition.lng], {
+          radius: config.playerProximityRadius,
           color: "#6c5ce7",
           fillColor: "#6c5ce7",
-        })
+          fillOpacity: 0.2,
+          weight: 1,
+        }).addTo(gameState.map)
+      } else {
+        // Mettre à jour la position et le rayon du cercle
+        gameState.playerCircle.setLatLng([gameState.playerCirclePosition.lat, gameState.playerCirclePosition.lng])
+        gameState.playerCircle.setRadius(config.playerProximityRadius)
+      }
+
+      // Toujours montrer le marqueur de position exacte pour le joueur actuel
+      if (!gameState.playerExactPositionMarker) {
+        gameState.playerExactPositionMarker = L.marker([position.lat, position.lng], {
+          icon: L.divIcon({
+            className: "player-exact-position",
+            html: `<div style="width: 10px; height: 10px; background-color: #6c5ce7; border-radius: 50%;"></div>`,
+            iconSize: [10, 10],
+            iconAnchor: [5, 5],
+          }),
+        }).addTo(gameState.map)
+      } else {
+        gameState.playerExactPositionMarker.setLatLng([position.lat, position.lng])
       }
     }
-
-    if (gameState.playerExactPositionMarker) {
-      gameState.playerExactPositionMarker.setLatLng([position.lat, position.lng])
-    }
   } else if (gameState.player.type === "cat") {
-    // Mettre à jour la position du marqueur de chat
+    // Pour les chats, toujours montrer la position exacte (pas de changement en sortant du cercle)
     if (gameState.playerCatMarker) {
       gameState.playerCatMarker.setLatLng([position.lat, position.lng])
     } else {
       addCatMarker(gameState.player)
     }
+
+    // Update inZone status for cats too
+    if (inZoneChanged) {
+      updatePlayerInZoneStatus(newInZone)
+    }
   }
 
-  gameState.globalBoundary.setLatLng(config.defaultCenter)
-
+  // Mettre à jour la position dans la base de données
   updatePlayerPosition()
+}
+
+// Add a new function to update player inZone status in the database
+async function updatePlayerInZoneStatus(inZone) {
+  if (!gameState.player) return
+
+  const { error } = await supabase.from("player").update({ inZone: inZone }).eq("id", gameState.player.id)
+
+  if (error) {
+    console.error("Error updating inZone status:", error)
+  } else {
+    console.log(`Player inZone status updated to: ${inZone}`)
+  }
 }
 
 // Subscribe to real-time updates
@@ -525,7 +728,7 @@ function handleRealtimeUpdate(payload) {
   const { eventType, new: newRecord, old: oldRecord } = payload
 
   // Skip if it's the current player's update
-  if (gameState.player && newRecord.id === gameState.player.id) {
+  if (gameState.player && newRecord && newRecord.id === gameState.player.id) {
     return
   }
 
@@ -557,31 +760,31 @@ function updateMap() {
         (gameState.player && layer === gameState.playerExactPositionMarker) ||
         (gameState.player && layer === gameState.playerCatMarker)
       ) {
-        return;
+        return
       }
-      gameState.map.removeLayer(layer);
+      gameState.map.removeLayer(layer)
     }
-  });
+  })
 
   gameState.players.forEach((player) => {
     if (!gameState.player || player.data.name !== gameState.player.name) {
-      addPlayerToMap(player.data);
+      addPlayerToMap(player.data)
     }
-  });
+  })
   gameState.cats.forEach((cat) => {
     if (!gameState.player || cat.data.name !== gameState.player.name) {
-      addPlayerToMap(cat.data);
+      addPlayerToMap(cat.data)
     }
-  });
+  })
 
   if (gameState.player) {
     if (gameState.player.type === "player") {
       if (!gameState.playerCircle || !gameState.playerExactPositionMarker) {
-        addPlayerToMap(gameState.player);
+        addPlayerToMap(gameState.player)
       }
     } else if (gameState.player.type === "cat") {
       if (!gameState.playerCatMarker) {
-        addCatMarker(gameState.player);
+        addCatMarker(gameState.player)
       }
     }
   }
@@ -605,8 +808,40 @@ function handleEntityUpdate(entity) {
   if (entity.type === "player") {
     const playerData = gameState.players.get(entity.id)
     if (playerData) {
+      // Check if inZone status has changed
+      const inZoneChanged = playerData.data.inZone !== entity.inZone
+
+      // Update player data
       playerData.data = entity
-      playerData.circle.bindPopup(`${entity.name} - Score: ${Math.round(entity.score || 0)}`)
+
+      // If inZone status changed, remove and re-add the player to update display
+      if (inZoneChanged) {
+        // Remove existing markers/circles
+        if (playerData.circle) {
+          gameState.map.removeLayer(playerData.circle)
+        }
+        if (playerData.marker) {
+          gameState.map.removeLayer(playerData.marker)
+        }
+
+        // Remove from collection
+        gameState.players.delete(entity.id)
+
+        // Re-add with new status
+        addPlayerToMap(entity)
+      } else {
+        // Just update position
+        if (entity.inZone && playerData.circle) {
+          playerData.circle.setLatLng([entity.position.lat, entity.position.lng])
+          playerData.circle.bindPopup(`${entity.name} - Score: ${Math.round(entity.score || 0)}`)
+        } else if (!entity.inZone && playerData.marker) {
+          playerData.marker.setLatLng([entity.position.lat, entity.position.lng])
+          playerData.marker.bindPopup(`${entity.name} - Score: ${Math.round(entity.score || 0)}`)
+        }
+      }
+    } else {
+      // New player, add to map
+      addPlayerToMap(entity)
     }
   } else if (entity.type === "cat") {
     const catData = gameState.cats.get(entity.id)
@@ -614,6 +849,9 @@ function handleEntityUpdate(entity) {
       catData.data = entity
       catData.marker.setLatLng([entity.position.lat, entity.position.lng])
       catData.marker.bindPopup(entity.name)
+    } else {
+      // New cat, add to map
+      addPlayerToMap(entity)
     }
   }
   updatePlayersList()
@@ -627,6 +865,8 @@ function handleEntityRemoval(entity) {
       // Remove from map
       if (gameState.map.hasLayer(playerData.circle)) {
         gameState.map.removeLayer(playerData.circle)
+      }
+      if (gameState.map.hasLayer(playerData.marker)) {
       }
       if (gameState.map.hasLayer(playerData.marker)) {
         gameState.map.removeLayer(playerData.marker)
@@ -687,73 +927,72 @@ async function fetchExistingEntities() {
 
 // Update players list in sidebar
 function updatePlayersList() {
-  elements.playersList.innerHTML = "";
-  const addedPlayers = new Set();
+  elements.playersList.innerHTML = ""
+  const addedPlayers = new Set()
 
   if (gameState.player && gameState.player.type === "player") {
-    const li = document.createElement("li");
-    li.textContent = `${gameState.player.name} (You)`;
-    li.style.fontWeight = "bold";
-    elements.playersList.appendChild(li);
-    addedPlayers.add(gameState.player.name);
+    const li = document.createElement("li")
+    li.textContent = `${gameState.player.name} (You)`
+    li.style.fontWeight = "bold"
+    elements.playersList.appendChild(li)
+    addedPlayers.add(gameState.player.name)
   }
 
   gameState.players.forEach((player) => {
     if (!addedPlayers.has(player.data.name)) {
-      const li = document.createElement("li");
-      li.textContent = player.data.name;
+      const li = document.createElement("li")
+      li.textContent = player.data.name
       if (gameState.player && player.data.name === gameState.player.name) {
-        li.textContent += " (You)";
-        li.style.fontWeight = "bold";
+        li.textContent += " (You)"
+        li.style.fontWeight = "bold"
       }
-      
+
       // 🔥 Ajout du clic pour centrer la map sur le joueur
       li.addEventListener("click", () => {
         if (player.data.position) {
-          gameState.map.setView([player.data.position.lat, player.data.position.lng], 18);
+          gameState.map.setView([player.data.position.lat, player.data.position.lng], 18)
         }
-      });
+      })
 
-      elements.playersList.appendChild(li);
-      addedPlayers.add(player.data.name);
+      elements.playersList.appendChild(li)
+      addedPlayers.add(player.data.name)
     }
-  });
+  })
 }
-
 
 // Update cats list in sidebar
 function updateCatsList() {
-  elements.catsList.innerHTML = "";
-  const addedCats = new Set();
+  elements.catsList.innerHTML = ""
+  const addedCats = new Set()
 
   if (gameState.player && gameState.player.type === "cat") {
-    const li = document.createElement("li");
-    li.textContent = `${gameState.player.name} (You)`;
-    li.style.fontWeight = "bold";
-    elements.catsList.appendChild(li);
-    addedCats.add(gameState.player.name);
+    const li = document.createElement("li")
+    li.textContent = `${gameState.player.name} (You)`
+    li.style.fontWeight = "bold"
+    elements.catsList.appendChild(li)
+    addedCats.add(gameState.player.name)
   }
 
   gameState.cats.forEach((cat) => {
     if (!addedCats.has(cat.data.name)) {
-      const li = document.createElement("li");
-      li.textContent = cat.data.name;
+      const li = document.createElement("li")
+      li.textContent = cat.data.name
       if (gameState.player && cat.data.name === gameState.player.name) {
-        li.textContent += " (You)";
-        li.style.fontWeight = "bold";
+        li.textContent += " (You)"
+        li.style.fontWeight = "bold"
       }
 
       // 🔥 Ajout du clic pour centrer la map sur le chat
       li.addEventListener("click", () => {
         if (cat.data.position) {
-          gameState.map.setView([cat.data.position.lat, cat.data.position.lng], 18);
+          gameState.map.setView([cat.data.position.lat, cat.data.position.lng], 18)
         }
-      });
+      })
 
-      elements.catsList.appendChild(li);
-      addedCats.add(cat.data.name);
+      elements.catsList.appendChild(li)
+      addedCats.add(cat.data.name)
     }
-  });
+  })
 }
 
 // Clean up when leaving the page
@@ -817,116 +1056,84 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 })
 
-// Add this new function to calculate and update the score
-async function updateScore() {
-  if (!gameState.player || gameState.player.type !== "player") return
-
-  const now = Date.now()
-  const dt = (now - gameState.lastScoreUpdate) / 1000 // Time difference in seconds
-  gameState.lastScoreUpdate = now
-
-  let maxFactor = 0
-  gameState.cats.forEach((cat) => {
-    const distance = gameState.map.distance(gameState.player.position, cat.data.position)
-    if (distance <= 150) {
-      const factor = (150 - distance) / 150
-      maxFactor = Math.max(maxFactor, factor)
-    }
-  })
-
-  const baseScore = 10 // Points per second when right next to a cat
-  const scoreIncrement = baseScore * maxFactor * dt
-
-  gameState.player.score += scoreIncrement + pointsToAdd
-  pointsToAdd = 0 // Réinitialiser les points à ajouter
-
-  // Update score in the database
-  const { error } = await supabase
-    .from("player")
-    .update({ score: Math.round(gameState.player.score) })
-    .eq("id", gameState.player.id)
-
-  if (error) {
-    console.error("Error updating score:", error)
-  } else {
-    updateScoreDisplay()
-  }
-}
-
-// Add this new function to update the score display
-function updateScoreDisplay() {
-  const scoreElement = document.getElementById("player-score")
-  if (scoreElement) {
-    scoreElement.textContent = `Score: ${Math.round(gameState.player.score)}`
-  }
-}
-
-// Modifiez la fonction refreshMapAndLists
+// Modifier la fonction refreshMapAndLists pour s'assurer que le rayon du cercle du joueur est mis à jour
 async function refreshMapAndLists() {
-  console.log("Actualisation de la carte et des listes...");
+  console.log("Actualisation de la carte et des listes...")
 
   // Recharger les settings depuis la DB
-  const settings = await loadGameSettings();
+  const settings = await loadGameSettings()
   if (settings) {
-    config.defaultCenter = [settings.map_center_lat, settings.map_center_lng];
-    config.globalBoundaryRadius = settings.global_boundary_radius;
-    config.defaultZoom = settings.map_zoom_level;
-    config.playerProximityRadius = settings.player_proximity_radius;
-    config.updateInterval = settings.update_interval;
-    console.log("Game settings rechargés :", config);
+    // Sauvegarder l'ancien rayon pour détecter les changements
+    const oldPlayerProximityRadius = config.playerProximityRadius
+
+    config.defaultCenter = [settings.map_center_lat, settings.map_center_lng]
+    config.globalBoundaryRadius = settings.global_boundary_radius
+    config.defaultZoom = settings.map_zoom_level
+    config.playerProximityRadius = settings.player_proximity_radius
+    config.updateInterval = settings.update_interval
+
+    console.log("Game settings rechargés :", config)
+
+    // Si le rayon a changé et que le joueur a un cercle, mettre à jour le rayon
+    if (oldPlayerProximityRadius !== config.playerProximityRadius && gameState.playerCircle) {
+      gameState.playerCircle.setRadius(config.playerProximityRadius)
+      console.log("Rayon du cercle du joueur mis à jour :", config.playerProximityRadius)
+    }
   } else {
-    console.warn("Utilisation des settings par défaut.");
+    console.warn("Utilisation des settings par défaut.")
   }
 
   // Mettre à jour le cercle global avec les nouvelles valeurs
-  if (gameState.globalBoundary) {
-    gameState.globalBoundary.setLatLng(config.defaultCenter);
-    gameState.globalBoundary.setRadius(config.globalBoundaryRadius);
-  } else {
-    gameState.globalBoundary = L.circle(config.defaultCenter, {
-      radius: config.globalBoundaryRadius,
-      color: "#6c5ce7",
-      fillColor: "#6c5ce7",
-      fillOpacity: 0.1,
-      weight: 2,
-      dashArray: "5, 10",
-    }).addTo(gameState.map);
+  if (gameState.map) {
+    if (gameState.globalBoundary) {
+      gameState.globalBoundary.setLatLng(config.defaultCenter)
+      gameState.globalBoundary.setRadius(config.globalBoundaryRadius)
+    } else {
+      gameState.globalBoundary = L.circle(config.defaultCenter, {
+        radius: config.globalBoundaryRadius,
+        color: "#6c5ce7",
+        fillColor: "#6c5ce7",
+        fillOpacity: 0.1,
+        weight: 2,
+        dashArray: "5, 10",
+      }).addTo(gameState.map)
+    }
   }
 
   // Ensuite, on continue avec l'actualisation classique (joueurs, chats, etc.)
   const { data: players, error: playersError } = await supabase
     .from("player")
     .select("*")
-    .order("score", { ascending: false });
+    .order("score", { ascending: false })
 
   if (playersError) {
-    console.error("Erreur lors de la récupération des joueurs:", playersError);
-    return;
+    console.error("Erreur lors de la récupération des joueurs:", playersError)
+    return
   }
 
   // Vider les listes actuelles
-  gameState.players.clear();
-  gameState.cats.clear();
+  gameState.players.clear()
+  gameState.cats.clear()
 
   // Mettre à jour les listes et la carte
   players.forEach((player) => {
     if (gameState.player && player.name === gameState.player.name) {
-      gameState.player = { ...gameState.player, ...player };
+      gameState.player = { ...gameState.player, ...player }
       if (player.type === "cat" && !gameState.playerCatMarker) {
-        addCatMarker(player);
+        addCatMarker(player)
       }
     } else if (player.type === "player") {
-      gameState.players.set(player.id, { data: player });
+      gameState.players.set(player.id, { data: player })
     } else if (player.type === "cat") {
-      gameState.cats.set(player.id, { data: player });
+      gameState.cats.set(player.id, { data: player })
     }
-  });
+  })
 
-  updateMap();
-  updatePlayersList();
-  updateCatsList();
+  updateMap()
+  updatePlayersList()
+  updateCatsList()
 
-  console.log("Carte et listes actualisées");
+  console.log("Carte et listes actualisées")
 }
 
 // Ajoutez cette nouvelle fonction pour ajouter un marqueur de chat
@@ -1019,9 +1226,11 @@ async function switchToCat() {
 
 // Ajoutez cette nouvelle fonction pour démarrer l'intervalle de score
 function startScoreInterval() {
+  // Ne plus ajouter de points automatiquement
   scoreInterval = setInterval(() => {
-    pointsToAdd += 50
-  }, 30000)
+    // Cette fonction est vide car nous ne voulons plus ajouter de points automatiquement
+    // Les points sont uniquement ajoutés quand on est proche d'un chat
+  }, 300000)
 }
 
 // Ajoutez cette nouvelle fonction pour quitter le jeu
@@ -1037,4 +1246,76 @@ async function quitGame() {
     }
   }
 }
+
+// Add this new function to calculate and update the score
+async function updateScore() {
+  if (!gameState.player || gameState.player.type !== "player") return
+
+  const now = Date.now()
+  const dt = (now - gameState.lastScoreUpdate) / 1000 // Time difference in seconds
+  gameState.lastScoreUpdate = now
+
+  // Vérifier s'il y a des chats sur la carte
+  if (gameState.cats.size === 0) {
+    // Pas de chats sur la carte, pas de points à ajouter
+    console.log("Aucun chat sur la carte, pas de points ajoutés")
+    return
+  }
+
+  let maxFactor = 0
+  let nearCat = false
+
+  // Parcourir tous les chats pour trouver le plus proche
+  gameState.cats.forEach((cat) => {
+    if (!cat.data || !cat.data.position || !gameState.player.position) return
+
+    const distance = gameState.map.distance(
+      [gameState.player.position.lat, gameState.player.position.lng],
+      [cat.data.position.lat, cat.data.position.lng],
+    )
+
+    // Seulement si le joueur est à moins de 150 mètres d'un chat
+    if (distance <= 150) {
+      nearCat = true
+      // Plus le joueur est proche, plus le facteur est élevé (1 quand distance = 0, 0 quand distance = 150)
+      const factor = (150 - distance) / 150
+      maxFactor = Math.max(maxFactor, factor)
+      console.log(`Proche d'un chat à ${Math.round(distance)}m, facteur: ${factor.toFixed(2)}`)
+    }
+  })
+
+  // N'ajouter des points que si le joueur est près d'un chat
+  if (nearCat) {
+    const baseScore = 10 // Points par seconde quand juste à côté d'un chat
+    const scoreIncrement = baseScore * maxFactor * dt
+
+    gameState.player.score += scoreIncrement
+    console.log(
+      `Points ajoutés: ${scoreIncrement.toFixed(2)}, facteur: ${maxFactor.toFixed(2)}, temps: ${dt.toFixed(2)}s`,
+    )
+
+    // Mettre à jour le score dans la base de données
+    const { error } = await supabase
+      .from("player")
+      .update({ score: Math.round(gameState.player.score) })
+      .eq("id", gameState.player.id)
+
+    if (error) {
+      console.error("Erreur lors de la mise à jour du score:", error)
+    } else {
+      updateScoreDisplay()
+    }
+  } else {
+    console.log("Pas assez proche d'un chat pour gagner des points")
+  }
+}
+
+// Add this new function to update the score display
+function updateScoreDisplay() {
+  const scoreElement = document.getElementById("player-score")
+  if (scoreElement) {
+    scoreElement.textContent = `Score: ${Math.round(gameState.player.score)}`
+  }
+}
+
 
