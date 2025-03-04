@@ -1,12 +1,8 @@
 // Initialize Supabase client
 const supabaseUrl = "https://oadwuacpouppdynssxrw.supabase.co"
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hZHd1YWNwb3VwcGR5bnNzeHJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2NzMyMTEsImV4cCI6MjA1NjI0OTIxMX0.MF7Ijl8SHm7wzKt8XiD3EQVqikLaVqkhPAYkqiJHisA"
-
-// Correction : Ajout de l'option pour inclure le header "apikey"
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey, {
-  headers: { apikey: supabaseKey }
-})
-
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hZHd1YWNwb3VwcGR5bnNzeHJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2NzMyMTEsImV4cCI6MjA1NjI0OTIxMX0.MF7Ijl8SHm7wzKt8XiD3EQVqikLaVqkhPAYkqiJHisA"
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
 
 // Config par défaut (au cas où le chargement de la DB planterait)
 const config = {
@@ -14,7 +10,7 @@ const config = {
   defaultZoom: 15,
   globalBoundaryRadius: 1000,
   playerProximityRadius: 200,
-  updateInterval: 2000,
+  updateInterval: 60000,
 }
 
 // Fonction pour charger les settings depuis la table "game_settings"
@@ -401,7 +397,7 @@ async function joinGame(name, type, position) {
     updateCatsList()
 
     // Start score update interval
-    setInterval(updateScore, 1000) // Update score every second
+    setInterval(updateScore, config.updateInterval)
 
     // Mettre à jour l'interface utilisateur
     document.querySelectorAll(".player-form > *:not(#switch-to-cat)").forEach((el) => (el.style.display = "none"))
@@ -557,7 +553,7 @@ if (refreshButton) {
 }
 
 // Set up an interval to automatically refresh the map and lists
-setInterval(refreshMapAndLists, 2000)
+setInterval(refreshMapAndLists, config.updateInterval)
 
 // Modifier la fonction updateCurrentPlayerPosition pour corriger l'affichage des positions
 function updateCurrentPlayerPosition(position) {
@@ -950,7 +946,7 @@ function updatePlayersList() {
       // 🔥 Ajout du clic pour centrer la map sur le joueur
       li.addEventListener("click", () => {
         if (player.data.position) {
-          gameState.map.setView([player.data.position.lat, player.data.position.lng], 18)
+          gameState.map.setView([player.data.position.lat, player.data.position.lng], 15)
         }
       })
 
