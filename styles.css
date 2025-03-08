@@ -241,8 +241,8 @@ body.dark {
 
 /* Modification du positionnement des contrôles de carte */
 #map-controls {
-  position: relative;
-  bottom: 100px;
+  position: absolute;
+  top: 20px;
   left: 10px;
   z-index: 1000;
   display: flex;
@@ -278,28 +278,26 @@ body.dark {
   background-color: rgba(57, 62, 70, 0.8);
 }
 
-/* Score Module */
+/* Modification pour le score dans la navbar */
 #score-module {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: transparent;
-  backdrop-filter: blur(2px);
+  position: fixed;
+  bottom: 60px;
+  left: 0;
+  right: 0;
+  background: rgba(108, 92, 231, 0.8);
+  backdrop-filter: blur(4px);
   padding: 8px 16px;
-  border-radius: 20px;
-  box-shadow: var(--box-shadow);
-  z-index: 1000;
+  z-index: 1002;
   font-weight: bold;
   font-size: 1.2rem;
-  width: auto;
-  max-width: 90%;
+  width: 100%;
   text-align: center;
+  color: white;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
 }
 
 .dark #score-module {
-  background-color: rgba(57, 62, 70, 0.7);
-  color: white;
+  background: rgba(108, 92, 231, 0.8);
 }
 
 /* Players Page */
@@ -552,26 +550,32 @@ body.dark {
 }
 
 .login-container {
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(15px);
-  border-radius: 8px;
-  padding: 24px;
+  border-radius: 16px;
+  padding: 28px;
   width: 90%;
   max-width: 400px;
-  box-shadow: var(--box-shadow);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
   overflow-y: auto;
   max-height: 90vh;
 }
 
 .dark .login-container {
-  background-color: rgba(57, 62, 70, 0.9);
+  background-color: rgba(30, 30, 46, 0.95);
   color: var(--foreground-dark);
 }
 
 .login-container h2 {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   text-align: center;
-  font-size: 1.5rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #185ee0;
+}
+
+.dark .login-container h2 {
+  color: #81a1c1;
 }
 
 .form-group {
@@ -676,3 +680,145 @@ body.dark {
   touch-action: pan-x pan-y;
 }
 
+/* Tabs component from user's code */
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.tabs {
+  display: flex;
+  position: relative;
+  background-color: #fff;
+  box-shadow: 0 0 1px 0 rgba(24, 94, 224, 0.15), 0 6px 12px 0 rgba(24, 94, 224, 0.15);
+  padding: 0.75rem;
+  border-radius: 99px;
+}
+
+.tabs * {
+  z-index: 2;
+}
+
+.container input[type="radio"] {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  width: 50px;
+  font-size: .8rem;
+  color: black;
+  font-weight: 500;
+  border-radius: 99px;
+  cursor: pointer;
+  transition: color 0.15s ease-in;
+}
+
+.notification {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: .8rem;
+  height: .8rem;
+  position: absolute;
+  top: 10px;
+  left: 30%;
+  font-size: 10px;
+  margin-left: 0.75rem;
+  border-radius: 50%;
+  margin: 0px;
+  background-color: #e6eef9;
+  transition: 0.15s ease-in;
+}
+
+.container input[type="radio"]:checked + label {
+  color: #185ee0;
+}
+
+.container input[type="radio"]:checked + label > .notification {
+  background-color: #185ee0;
+  color: #fff;
+  margin: 0px;
+}
+
+.container input[id="radio-1"]:checked ~ .glider {
+  transform: translateX(0);
+}
+
+.container input[id="radio-2"]:checked ~ .glider {
+  transform: translateX(100%);
+}
+
+.container input[id="radio-3"]:checked ~ .glider {
+  transform: translateX(200%);
+}
+
+.glider {
+  position: absolute;
+  display: flex;
+  height: 30px;
+  width: 50px;
+  background-color: #e6eef9;
+  z-index: 1;
+  border-radius: 99px;
+  transition: 0.25s ease-out;
+}
+
+/* Dark mode support for tabs */
+.dark .tabs {
+  background-color: #1e1e2e;
+}
+
+.dark .tab {
+  color: #e6eef9;
+}
+
+.dark .glider {
+  background-color: #3b4252;
+}
+
+.dark .container input[type="radio"]:checked + label {
+  color: #81a1c1;
+}
+
+.dark .container input[type="radio"]:checked + label > .notification {
+  background-color: #81a1c1;
+}
+
+/* Fix for bottom navbar on mobile */
+@media (max-width: 768px) {
+  #bottom-navbar {
+    height: 70px;
+    padding-bottom: 10px; /* Add safe area for iPhone */
+  }
+
+  /* Ensure content doesn't get hidden behind the navbar */
+  #main-container {
+    height: calc(100vh - 70px);
+    padding-bottom: 10px;
+  }
+
+  #player-actions {
+    margin-bottom: 100px; /* Increase bottom margin to prevent overlap */
+  }
+}
+
+/* Fix pour iOS safe areas */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #bottom-navbar {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    height: calc(60px + env(safe-area-inset-bottom));
+  }
+  
+  #main-container {
+    height: calc(100vh - 60px - env(safe-area-inset-bottom));
+  }
+  
+  #score-module {
+    bottom: calc(60px + env(safe-area-inset-bottom));
+  }
+}

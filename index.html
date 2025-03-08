@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Cat Chase 2025</title>
   <link
     rel="stylesheet"
@@ -101,21 +101,22 @@
           <label for="player-name">Votre nom</label>
           <input type="text" id="player-name" required minlength="2" placeholder="Entrez votre nom" />
         </div>
+        <!-- Replace the login form player-type select with tabs -->
         <div class="form-group">
           <label for="player-type">Type</label>
-          <select id="player-type">
-            <option value="player">Joueur</option>
-            <option value="cat">Chat</option>
-          </select>
+          <div class="container">
+            <div class="tabs">
+              <input type="radio" id="radio-1" name="tabs" checked value="player">
+              <label class="tab" for="radio-1">Joueur</label>
+              <input type="radio" id="radio-2" name="tabs" value="cat">
+              <label class="tab" for="radio-2">Chat</label>
+              <span class="glider"></span>
+            </div>
+          </div>
         </div>
         <button type="submit" class="btn btn-primary">Rejoindre</button>
       </form>
     </div>
-  </div>
-
-  <!-- Score module -->
-  <div class="score-container" id="score-module">
-    <div id="player-score">Score: 0</div>
   </div>
 
   <!-- Container for both pages -->
@@ -165,6 +166,11 @@
     </div>
   </main>
 
+  <!-- Score module - déplacé au-dessus de la navbar -->
+  <div class="score-container" id="score-module">
+    <div id="player-score">Score: 0</div>
+  </div>
+
   <!-- Bottom navigation bar -->
   <nav id="bottom-navbar">
     <button id="map-tab" class="nav-tab active">
@@ -189,4 +195,3 @@
   <script src="script.js"></script>
 </body>
 </html>
-

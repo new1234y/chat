@@ -53,7 +53,6 @@ const gameState = {
 const elements = {
   joinForm: document.getElementById("join-form"),
   playerName: document.getElementById("player-name"),
-  playerType: document.getElementById("player-type"),
   playersList: document.getElementById("players"),
   catsList: document.getElementById("cats"),
   loginModal: document.getElementById("login-modal"),
@@ -103,6 +102,9 @@ function initGame() {
 
   // Fetch existing players and cats
   fetchExistingEntities()
+
+  gameState.zoomControl.remove();
+
 
   // Show login modal at start
   elements.loginModal.style.display = "flex"
@@ -169,29 +171,28 @@ function setupEventListeners() {
 
   // Center map button
   elements.centerMapBtn.addEventListener("click", () => {
-    const bounds = [];
-  
+    const bounds = []
+
     // Ajoute la position du joueur courant
     if (gameState.player && gameState.player.position) {
-      bounds.push([gameState.player.position.lat, gameState.player.position.lng]);
+      bounds.push([gameState.player.position.lat, gameState.player.position.lng])
     }
-  
+
     // Ajoute la position de tous les autres joueurs
     gameState.players.forEach((playerObj) => {
       if (playerObj.data.position) {
-        bounds.push([playerObj.data.position.lat, playerObj.data.position.lng]);
+        bounds.push([playerObj.data.position.lat, playerObj.data.position.lng])
       }
-    });
-  
+    })
+
     if (bounds.length > 0) {
       // Ajuste le zoom et le centrage pour afficher tous les joueurs avec une marge de 50 pixels
-      gameState.map.fitBounds(bounds, { padding: [50, 50] });
+      gameState.map.fitBounds(bounds, { padding: [50, 50] })
     } else {
       // Si aucune position n'est disponible, on centre sur la position par défaut
-      gameState.map.setView(config.defaultCenter, config.defaultZoom);
+      gameState.map.setView(config.defaultCenter, config.defaultZoom)
     }
-  });
-  
+  })
 
   // Map click for movement (only if player is joined)
   gameState.map.on("click", (e) => {
@@ -205,7 +206,7 @@ function setupEventListeners() {
 
   // Theme toggle
   elements.themeToggle.addEventListener("click", (e) => {
-    gameState.darkMode = !gameState.darkMode;
+    gameState.darkMode = !gameState.darkMode
     updateTheme(gameState.darkMode)
   })
 
@@ -257,7 +258,8 @@ async function handleJoinGame(e) {
   console.log("Join form submitted")
 
   const name = elements.playerName.value.trim()
-  const type = elements.playerType.value
+  // Get the selected player type from radio buttons
+  const type = document.querySelector('input[name="tabs"]:checked').value
 
   if (!name) {
     alert("Please enter a player name!")
@@ -1171,26 +1173,33 @@ async function checkSupabaseConnection() {
 
 // Initialize the game when DOM is loaded
 document.addEventListener("DOMContentLoaded", async () => {
-  // Check Supabase connection first
-  const isConnected = await checkSupabaseConnection()
+  // Add viewport meta tag with additional parameters for iOS
+  const meta = document.createElement("meta")
+  meta.name = "viewport"
+  meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  document.getElementsByTagName("head")[0].appendChild(meta)
 
-  if (isConnected) {
-    // Load settings from DB and update config object
-    const settings = await loadGameSettings()
-    if (settings) {
-      config.defaultCenter = [settings.map_center_lat, settings.map_center_lng]
-      config.defaultZoom = settings.map_zoom_level
-      config.playerProximityRadius = settings.player_proximity_radius
-      config.globalBoundaryRadius = settings.global_boundary_radius
-      config.updateInterval = 20000 // Force to 20 seconds as requested
-      console.log("Game settings loaded from DB:", config)
+  // The rest of your initialization code...
+  const isConnected = checkSupabaseConnection().then((connected) => {
+    if (connected) {
+      // Load settings from DB and update config object
+      loadGameSettings().then((settings) => {
+        if (settings) {
+          config.defaultCenter = [settings.map_center_lat, settings.map_center_lng]
+          config.defaultZoom = settings.map_zoom_level
+          config.playerProximityRadius = settings.player_proximity_radius
+          config.globalBoundaryRadius = settings.global_boundary_radius
+          config.updateInterval = 20000 // Force to 20 seconds as requested
+          console.log("Game settings loaded from DB:", config)
+        } else {
+          console.warn("Using default settings.")
+        }
+        initGame()
+      })
     } else {
-      console.warn("Using default settings.")
+      alert("Error connecting to database. Please refresh the page and try again.")
     }
-    initGame()
-  } else {
-    alert("Error connecting to database. Please refresh the page and try again.")
-  }
+  })
 })
 
 // Modify the refreshMapAndLists function to be more reliable
