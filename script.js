@@ -235,24 +235,31 @@ function setupEventListeners() {
 // Function to switch between tabs
 function switchTab(tabName) {
   if (tabName === "map") {
-    elements.mapPage.classList.add("active")
-    elements.playersPage.classList.remove("active")
-    elements.mapTab.classList.add("active")
-    elements.playersTab.classList.remove("active")
+    elements.mapPage.classList.add("active");
+    elements.playersPage.classList.remove("active");
+    elements.mapTab.classList.add("active");
+    elements.playersPage.classList.remove("active");
 
     // Refresh map size when switching to map tab
     if (gameState.map) {
       setTimeout(() => {
-        gameState.map.invalidateSize()
-      }, 100)
+        gameState.map.invalidateSize();
+      }, 100);
     }
+    
+    // Affiche l'onglet de la carte et cache celui des joueurs
+    elements.playersPage.style.display = 'none';
   } else if (tabName === "players") {
-    elements.playersPage.classList.add("active")
-    elements.mapPage.classList.remove("active")
-    elements.playersTab.classList.add("active")
-    elements.mapTab.classList.remove("active")
+    elements.playersPage.classList.add("active");
+    elements.mapPage.classList.remove("active");
+    elements.playersPage.classList.add("active");
+    elements.mapTab.classList.remove("active");
+    
+    // Affiche l'onglet des joueurs et cache celui de la carte
+    elements.playersPage.style.display = 'block'; // Montre l'onglet des joueurs
   }
 }
+
 
 // Handle join game form submission
 async function handleJoinGame(e) {

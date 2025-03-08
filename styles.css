@@ -187,6 +187,11 @@ body.dark {
   font-weight: 500;
 }
 
+#theme-icon {
+  width: 20px;
+  height: 20px;
+}
+
 /* Toggle switch */
 .theme-toggle-btn {
   background: transparent;
@@ -314,6 +319,7 @@ body.dark {
   background-color: rgb(254, 254, 254);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  display: none;
 }
 
 .dark #players-page {
@@ -427,11 +433,6 @@ body.dark {
   #theme-toggle-button {
     width: 34px;
     height: 34px;
-  }
-
-  #theme-icon {
-    width: 20px;
-    height: 20px;
   }
 
   #score-module {
