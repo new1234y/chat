@@ -207,6 +207,7 @@ body.dark {
 .dark .theme-toggle-btn {
   background-color: rgba(57, 62, 70, 0.7);
   color: #fff;
+  fill: white;
 }
 
 /* Main container */
@@ -586,8 +587,6 @@ body.dark {
 }
 
 .form-group label {
-  display: block;
-  margin-bottom: 8px;
   font-weight: 500;
 }
 
@@ -600,15 +599,35 @@ body.dark {
   font-size: 1rem;
   background-color: white;
   height: 44px; /* Pour une meilleure accessibilité tactile */
+  margin-top: 10px;
+  border: none;
+  outline: none;
+  border-radius: 15px;
+  padding: 1em;
+  box-shadow: inset 2px 5px 10px rgba(0,0,0,0.3);
+  transition: 300ms ease-in-out;
 }
 
 .dark .form-group input,
 .dark .form-group select {
-  background-color: var(--dark-lighter);
   border-color: #4c5258;
   color: var(--foreground-dark);
+  border: none;
+  outline: none;
+  border-radius: 15px;
+  padding: 1em;
+  background-color: var(--dark-lighter);
+  box-shadow: inset 2px 5px 10px rgba(0,0,0,0.3);
+  transition: 300ms ease-in-out;
 }
 
+
+input:focus {
+  background-color: white;
+  transform: scale(1.05);
+  box-shadow: 13px 13px 100px #969696,
+             -13px -13px 100px #ffffff;
+}
 /* Loading Overlay */
 #loading-overlay {
   position: fixed;
