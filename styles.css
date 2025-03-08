@@ -1,0 +1,678 @@
+:root {
+  --primary-color: #6c5ce7;
+  --accent-color: #00cec9;
+  --danger-color: #e74c3c;
+  --warning-color: #f39c12;
+  --success-color: #2ecc71;
+  --background-light: #f5f6fa;
+  --foreground-light: #2d3436;
+  --background-dark: #222831;
+  --foreground-dark: #eeeeee;
+  --dark-accent: #393e46;
+  --dark-lighter: #32363f;
+  --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* From Uiverse.io by Nawsome */
+.pl {
+  display: block;
+  width: 9.375em;
+  height: 9.375em;
+}
+
+.pl__arrows,
+.pl__ring-rotate,
+.pl__ring-stroke,
+.pl__tick {
+  animation-duration: 2s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.pl__arrows {
+  animation-name: arrows42;
+  transform: rotate(45deg);
+  transform-origin: 16px 52px;
+}
+
+.pl__ring-rotate,
+.pl__ring-stroke {
+  transform-origin: 80px 80px;
+}
+
+.pl__ring-rotate {
+  animation-name: ringRotate42;
+}
+
+.pl__ring-stroke {
+  animation-name: ringStroke42;
+  transform: rotate(-45deg);
+}
+
+.pl__tick {
+  animation-name: tick42;
+}
+
+.pl__tick:nth-child(2) {
+  animation-delay: -1.75s;
+}
+
+.pl__tick:nth-child(3) {
+  animation-delay: -1.5s;
+}
+
+.pl__tick:nth-child(4) {
+  animation-delay: -1.25s;
+}
+
+.pl__tick:nth-child(5) {
+  animation-delay: -1s;
+}
+
+.pl__tick:nth-child(6) {
+  animation-delay: -0.75s;
+}
+
+.pl__tick:nth-child(7) {
+  animation-delay: -0.5s;
+}
+
+.pl__tick:nth-child(8) {
+  animation-delay: -0.25s;
+}
+
+/* Animations */
+@keyframes arrows42 {
+  from {
+    transform: rotate(45deg);
+  }
+
+  to {
+    transform: rotate(405deg);
+  }
+}
+
+@keyframes ringRotate42 {
+  from {
+    transform: rotate(0);
+  }
+
+  to {
+    transform: rotate(720deg);
+  }
+}
+
+@keyframes ringStroke42 {
+  from,
+  to {
+    stroke-dashoffset: 452;
+    transform: rotate(-45deg);
+  }
+
+  50% {
+    stroke-dashoffset: 169.5;
+    transform: rotate(-180deg);
+  }
+}
+
+@keyframes tick42 {
+  from,
+  3%,
+  47%,
+  to {
+    stroke-dashoffset: -12;
+  }
+
+  14%,
+  36% {
+    stroke-dashoffset: 0;
+  }
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--background-light);
+  color: var(--foreground-light);
+  transition: background-color 0.3s, color 0.3s;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  position: fixed; /* Empêche le défilement du body */
+  overflow: hidden; /* Contient tout dans la fenêtre visible */
+}
+
+body.dark {
+  background-color: var(--background-dark);
+  color: var(--foreground-dark);
+}
+
+/* Top Navbar */
+#top-navbar {
+  display: none;
+}
+
+.status-container {
+  background: transparent;
+  border-radius: 20px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  border: none;
+  transition: background 0.2s;
+}
+
+.dark .status-container {
+  background-color: rgba(57, 62, 70, 0.7);
+  color: #fff;
+}
+
+#status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+#status-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Toggle switch */
+.theme-toggle-btn {
+  background: transparent;
+  backdrop-filter: blur(4px);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  width: 36px;
+  height: 36px;
+}
+
+.dark .theme-toggle-btn {
+  background-color: rgba(57, 62, 70, 0.7);
+  color: #fff;
+}
+
+/* Main container */
+#main-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  height: calc(100vh - 60px); /* Hauteur totale moins la navbar */
+}
+
+/* Pages */
+.page {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  overflow-y: auto;
+}
+
+.page.active {
+  display: block;
+}
+
+/* Map */
+#game-map {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Modification du positionnement des contrôles de carte */
+#map-controls {
+  position: relative;
+  bottom: 100px;
+  left: 10px;
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 90vw;
+}
+
+.map-control-btn {
+  background: transparent;
+  backdrop-filter: blur(4px);
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  height: 40px;
+}
+
+.dark .map-control-btn {
+  background-color: rgba(57, 62, 70, 0.7);
+  color: #fff;
+}
+
+.dark .map-control-btn:hover {
+  background-color: rgba(57, 62, 70, 0.8);
+}
+
+/* Score Module */
+#score-module {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: transparent;
+  backdrop-filter: blur(2px);
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: var(--box-shadow);
+  z-index: 1000;
+  font-weight: bold;
+  font-size: 1.2rem;
+  width: auto;
+  max-width: 90%;
+  text-align: center;
+}
+
+.dark #score-module {
+  background-color: rgba(57, 62, 70, 0.7);
+  color: white;
+}
+
+/* Players Page */
+#players-page {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  background-color: rgb(254, 254, 254);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dark #players-page {
+  background-color: rgb(18.8%, 18.8%, 18.8%);
+}
+
+.lists-container {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 10px;
+  margin-bottom: 20px;
+}
+
+.list-section {
+  background: #1e1e2e;
+  border-radius: 12px;
+  padding: 15px;
+  width: 100%;
+  max-width: 300px;
+  box-shadow: 0px 4px 15px rgba(123, 97, 255, 0.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  margin-bottom: 15px;
+}
+
+.list-section:hover {
+  transform: translateY(-5px);
+  box-shadow: 0px 6px 20px rgba(123, 97, 255, 0.5);
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid rgba(123, 97, 255, 0.5);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.list-header h3 {
+  color: #fff;
+  font-size: 1.2em;
+  margin: 0;
+}
+
+.badge {
+  background: rgba(123, 97, 255, 0.3);
+  color: #c5b3ff;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 0.9em;
+  font-weight: bold;
+}
+
+.entity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.entity-list li {
+  background: rgba(123, 97, 255, 0.1);
+  color: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  transition: background 0.3s ease;
+  word-break: break-word;
+}
+
+.entity-list li:hover {
+  background: rgba(123, 97, 255, 0.3);
+}
+
+.entity-list li:first-child {
+  font-weight: bold;
+  background: rgba(123, 97, 255, 0.5);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .lists-container {
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 5px;
+  }
+
+  .list-section {
+    width: 100%;
+    margin-bottom: 15px;
+  }
+
+  #map-controls {
+    left: 5px;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .map-control-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    height: 34px;
+  }
+
+  .status-container {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  #theme-toggle-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  #theme-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  #score-module {
+    font-size: 1rem;
+    padding: 6px 12px;
+  }
+}
+
+/* Modification de la marge du bouton "Quitter la partie" */
+#player-actions {
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 20px 0 80px 0; /* Augmente la marge inférieure pour éviter la superposition avec la navbar */
+  width: 100%;
+}
+
+/* Bottom Navbar */
+#bottom-navbar {
+  height: 60px;
+  background-color: rgb(155 176 207 / 42%);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  z-index: 1001;
+  position: fixed; /* Fixe au bas de l'écran */
+  bottom: 0;
+  left: 0;
+  width: 100%;
+}
+
+.dark #bottom-navbar {
+  background-color: rgb(37 49 68 / 42%);
+  color: var(--foreground-dark);
+}
+
+.nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.dark .nav-tab {
+  color: #ccc;
+}
+
+.nav-tab.active {
+  color: var(--primary-color);
+}
+
+.dark .nav-tab.active {
+  color: #a29bfe;
+}
+
+.nav-tab svg {
+  margin-bottom: 4px;
+}
+
+/* Buttons */
+.btn {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  width: 100%;
+  font-weight: 500;
+  min-height: 44px; /* Pour une meilleure accessibilité tactile */
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #5549d0;
+}
+
+.btn-warning {
+  background-color: var(--warning-color);
+  color: white;
+}
+
+.btn-warning:hover {
+  background-color: #e67e22;
+}
+
+.btn-danger {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c0392b;
+}
+
+/* Login Modal */
+#login-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.login-container {
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(15px);
+  border-radius: 8px;
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: var(--box-shadow);
+  overflow-y: auto;
+  max-height: 90vh;
+}
+
+.dark .login-container {
+  background-color: rgba(57, 62, 70, 0.9);
+  color: var(--foreground-dark);
+}
+
+.login-container h2 {
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: white;
+  height: 44px; /* Pour une meilleure accessibilité tactile */
+}
+
+.dark .form-group input,
+.dark .form-group select {
+  background-color: var(--dark-lighter);
+  border-color: #4c5258;
+  color: var(--foreground-dark);
+}
+
+/* Loading Overlay */
+#loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 3000;
+  color: white;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Player marker and circle */
+.player-marker,
+.cat-marker {
+  cursor: pointer;
+}
+
+.player-exact-position {
+  opacity: 0.8;
+}
+
+/* Override some Leaflet styles for dark mode */
+.dark .leaflet-control-attribution {
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: #ddd !important;
+}
+
+.dark .leaflet-popup-content-wrapper,
+.dark .leaflet-popup-tip {
+  background-color: var(--dark-accent);
+  color: var(--foreground-dark);
+}
+
+/* Fix pour les contrôles Leaflet sur mobile */
+.leaflet-touch .leaflet-bar a {
+  width: 30px !important;
+  height: 30px !important;
+  line-height: 30px !important;
+  font-size: 22px !important;
+}
+
+.leaflet-popup-content {
+  margin: 13px 19px;
+  line-height: 1.4;
+  max-width: 80vw;
+  word-break: break-word;
+}
+
+/* Empêche les débordements */
+.leaflet-container {
+  touch-action: pan-x pan-y;
+}
+

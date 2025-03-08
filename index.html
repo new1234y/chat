@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Cat Chase 2025</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Overlay de chargement -->
+  <div id="loading-overlay">
+<!-- From Uiverse.io by Nawsome --> 
+<svg class="pl" viewBox="0 0 160 160" width="160px" height="160px" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#000"></stop>
+      <stop offset="100%" stop-color="#fff"></stop>
+    </linearGradient>
+    <mask id="mask1">
+      <rect x="0" y="0" width="160" height="160" fill="url(#grad)"></rect>
+    </mask>
+    <mask id="mask2">
+      <rect x="28" y="28" width="104" height="104" fill="url(#grad)"></rect>
+    </mask>
+  </defs>
+  
+  <g>
+    <g class="pl__ring-rotate">
+      <circle class="pl__ring-stroke" cx="80" cy="80" r="72" fill="none" stroke="hsl(223,90%,55%)" stroke-width="16" stroke-dasharray="452.39 452.39" stroke-dashoffset="452" stroke-linecap="round" transform="rotate(-45,80,80)"></circle>
+    </g>
+  </g>
+  <g mask="url(#mask1)">
+    <g class="pl__ring-rotate">
+      <circle class="pl__ring-stroke" cx="80" cy="80" r="72" fill="none" stroke="hsl(193,90%,55%)" stroke-width="16" stroke-dasharray="452.39 452.39" stroke-dashoffset="452" stroke-linecap="round" transform="rotate(-45,80,80)"></circle>
+    </g>
+  </g>
+  
+  <g>
+    <g stroke-width="4" stroke-dasharray="12 12" stroke-dashoffset="12" stroke-linecap="round" transform="translate(80,80)">
+      <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(-135,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(-90,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(-45,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(0,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(45,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(90,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(135,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(180,0,0) translate(0,40)"></polyline>
+    </g>
+  </g>
+  <g mask="url(#mask1)">
+    <g stroke-width="4" stroke-dasharray="12 12" stroke-dashoffset="12" stroke-linecap="round" transform="translate(80,80)">
+      <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(-135,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(-90,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(-45,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(0,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(45,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(90,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(135,0,0) translate(0,40)"></polyline>
+      <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(180,0,0) translate(0,40)"></polyline>
+    </g>
+  </g>
+  
+  <g>
+    <g transform="translate(64,28)">
+      <g class="pl__arrows" transform="rotate(45,16,52)">
+        <path fill="hsl(3,90%,55%)" d="M17.998,1.506l13.892,43.594c.455,1.426-.56,2.899-1.998,2.899H2.108c-1.437,0-2.452-1.473-1.998-2.899L14.002,1.506c.64-2.008,3.356-2.008,3.996,0Z"></path>
+        <path fill="hsl(223,10%,90%)" d="M14.009,102.499L.109,58.889c-.453-1.421,.559-2.889,1.991-2.889H29.899c1.433,0,2.444,1.468,1.991,2.889l-13.899,43.61c-.638,2.001-3.345,2.001-3.983,0Z"></path>
+      </g>
+    </g>
+  </g>
+  <g mask="url(#mask2)">
+    <g transform="translate(64,28)">
+      <g class="pl__arrows" transform="rotate(45,16,52)">
+        <path fill="hsl(333,90%,55%)" d="M17.998,1.506l13.892,43.594c.455,1.426-.56,2.899-1.998,2.899H2.108c-1.437,0-2.452-1.473-1.998-2.899L14.002,1.506c.64-2.008,3.356-2.008,3.996,0Z"></path>
+        <path fill="hsl(223,90%,80%)" d="M14.009,102.499L.109,58.889c-.453-1.421,.559-2.889,1.991-2.889H29.899c1.433,0,2.444,1.468,1.991,2.889l-13.899,43.61c-.638,2.001-3.345,2.001-3.983,0Z"></path>
+      </g>
+    </g>
+  </g>
+</svg>
+    <p>Chargement...</p>
+  </div>
+
+  <!-- Modal de login -->
+  <div id="login-modal">
+    <div class="login-container">
+      <h2>Rejoindre Cat Chase 2025</h2>
+      <form id="join-form">
+        <div class="form-group">
+          <label for="player-name">Votre nom</label>
+          <input type="text" id="player-name" required minlength="2" placeholder="Entrez votre nom" />
+        </div>
+        <div class="form-group">
+          <label for="player-type">Type</label>
+          <select id="player-type">
+            <option value="player">Joueur</option>
+            <option value="cat">Chat</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Rejoindre</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Score module -->
+  <div class="score-container" id="score-module">
+    <div id="player-score">Score: 0</div>
+  </div>
+
+  <!-- Container for both pages -->
+  <main id="main-container">
+    <!-- Map Page -->
+    <div id="map-page" class="page active">
+      <div id="game-map"></div>
+      <div id="map-controls">
+        <button id="center-map" class="map-control-btn">Center Map</button>
+        <div class="status-container">
+          <div id="status-indicator"></div>
+          <span id="status-text">Déconnecté</span>
+        </div>
+        <button id="theme-toggle-button" class="theme-toggle-btn">
+          <svg id="theme-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path id="sun-icon" d="M12 4V2M12 22V20M4 12H2M22 12H20M5.636 18.364L4.222 19.778M19.778 4.222L18.364 5.636M5.636 5.636L4.222 4.222M19.778 19.778L18.364 18.364Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Players Page -->
+    <div id="players-page" class="page">
+      <div class="lists-container">
+        <div class="list-section">
+          <div class="list-header">
+            <h3>Joueurs</h3>
+            <span id="player-count-badge" class="badge">Joueurs: 0</span>
+          </div>
+          <ul id="players" class="entity-list"></ul>
+        </div>
+        
+        <div class="list-section">
+          <div class="list-header">
+            <h3>Chats</h3>
+            <span id="cat-count-badge" class="badge">Chats: 0</span>
+          </div>
+          <ul id="cats" class="entity-list"></ul>
+        </div>
+      </div>
+      <div id="player-actions">
+        <div id="switch-to-cat-container" style="display: none">
+          <button id="switch-to-cat" class="btn btn-warning">Devenir un chat (-500 points)</button>
+        </div>
+        <button id="quit-game" class="btn btn-danger" style="display: none">Quitter la partie</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Bottom navigation bar -->
+  <nav id="bottom-navbar">
+    <button id="map-tab" class="nav-tab active">
+      <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+        <path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3V7z"></path>
+        <path d="M9 4v13"></path>
+        <path d="M15 7v13"></path>
+      </svg>
+      <span>Carte</span>
+    </button>
+    <button id="players-tab" class="nav-tab">
+      <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+      <span>Joueurs</span>
+    </button>
+  </nav>
+
+  <script src="script.js"></script>
+</body>
+</html>
+
