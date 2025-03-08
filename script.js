@@ -103,9 +103,6 @@ function initGame() {
   // Fetch existing players and cats
   fetchExistingEntities()
 
-  gameState.zoomControl.remove();
-
-
   // Show login modal at start
   elements.loginModal.style.display = "flex"
 }
@@ -1179,27 +1176,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
   document.getElementsByTagName("head")[0].appendChild(meta)
 
+  // S'assurer que la modal de login est visible au démarrage
+  const loginModal = document.getElementById("login-modal")
+  if (loginModal) {
+    loginModal.style.display = "flex"
+  }
+
   // The rest of your initialization code...
-  const isConnected = checkSupabaseConnection().then((connected) => {
-    if (connected) {
-      // Load settings from DB and update config object
-      loadGameSettings().then((settings) => {
-        if (settings) {
-          config.defaultCenter = [settings.map_center_lat, settings.map_center_lng]
-          config.defaultZoom = settings.map_zoom_level
-          config.playerProximityRadius = settings.player_proximity_radius
-          config.globalBoundaryRadius = settings.global_boundary_radius
-          config.updateInterval = 20000 // Force to 20 seconds as requested
-          console.log("Game settings loaded from DB:", config)
-        } else {
-          console.warn("Using default settings.")
-        }
-        initGame()
-      })
+  const isConnected = await checkSupabaseConnection()
+
+  if (isConnected) {
+    // Load settings from DB and update config object
+    const settings = await loadGameSettings()
+    if (settings) {
+      config.defaultCenter = [settings.map_center_lat, settings.map_center_lng]
+      config.defaultZoom = settings.map_zoom_level
+      config.playerProximityRadius = settings.player_proximity_radius
+      config.globalBoundaryRadius = settings.global_boundary_radius
+      config.updateInterval = 20000 // Force to 20 seconds as requested
+      console.log("Game settings loaded from DB:", config)
     } else {
-      alert("Error connecting to database. Please refresh the page and try again.")
+      console.warn("Using default settings.")
     }
-  })
+    initGame()
+  } else {
+    alert("Error connecting to database. Please refresh the page and try again.")
+  }
 })
 
 // Modify the refreshMapAndLists function to be more reliable

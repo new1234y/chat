@@ -119,23 +119,16 @@
     </div>
   </div>
 
+  <!-- Score module - remis en haut -->
+  <div class="score-container" id="score-module">
+    <div id="player-score">Score: 0</div>
+  </div>
+
   <!-- Container for both pages -->
   <main id="main-container">
     <!-- Map Page -->
     <div id="map-page" class="page active">
       <div id="game-map"></div>
-      <div id="map-controls">
-        <button id="center-map" class="map-control-btn">Center Map</button>
-        <div class="status-container">
-          <div id="status-indicator"></div>
-          <span id="status-text">Déconnecté</span>
-        </div>
-        <button id="theme-toggle-button" class="theme-toggle-btn">
-          <svg id="theme-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path id="sun-icon" d="M12 4V2M12 22V20M4 12H2M22 12H20M5.636 18.364L4.222 19.778M19.778 4.222L18.364 5.636M5.636 5.636L4.222 4.222M19.778 19.778L18.364 18.364Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-      </div>
     </div>
 
     <!-- Players Page -->
@@ -166,9 +159,18 @@
     </div>
   </main>
 
-  <!-- Score module - déplacé au-dessus de la navbar -->
-  <div class="score-container" id="score-module">
-    <div id="player-score">Score: 0</div>
+  <!-- Map controls - déplacés en bas au-dessus de la navbar -->
+  <div id="map-controls">
+    <button id="center-map" class="map-control-btn">Center Map</button>
+    <div class="status-container">
+      <div id="status-indicator"></div>
+      <span id="status-text">Déconnecté</span>
+    </div>
+    <button id="theme-toggle-button" class="theme-toggle-btn">
+      <svg id="theme-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path id="sun-icon" d="M12 4V2M12 22V20M4 12H2M22 12H20M5.636 18.364L4.222 19.778M19.778 4.222L18.364 5.636M5.636 5.636L4.222 4.222M19.778 19.778L18.364 18.364Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
   </div>
 
   <!-- Bottom navigation bar -->
@@ -195,3 +197,4 @@
   <script src="script.js"></script>
 </body>
 </html>
+
