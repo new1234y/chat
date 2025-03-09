@@ -72,9 +72,9 @@ const elements = {
   playersPage: document.getElementById("players-page"),
 }
 
-const sunIcon = `<svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="#ffd43b"><circle r="5" cy="12" cx="12"></circle><path id="sun-icon" d="m21 13h-1a1 1 0 0 1 0-2h1a1 1 0 0 1 0 2zm-17 0h-1a1 1 0 0 1 0-2h1a1 1 0 0 1 0 2zm13.66-5.66a1 1 0 0 1 -.66-.29 1 1 0 0 1 0-1.41l.71-.71a1 1 0 1 1 1.41 1.41l-.71.71a1 1 0 0 1 -.75.29zm-12.02 12.02a1 1 0 0 1 -.71-.29 1 1 0 0 1 0-1.41l.71-.66a1 1 0 0 1 1.41 1.41l-.71.71a1 1 0 0 1 -.7.24zm6.36-14.36a1 1 0 0 1 -1-1v-1a1 1 0 0 1 2 0v1a1 1 0 0 1 -1 1zm0 17a1 1 0 0 1 -1-1v-1a1 1 0 0 1 2 0v1a1 1 0 0 1 -1 1zm-5.66-14.66a1 1 0 0 1 -.7-.29l-.71-.71a1 1 0 0 1 1.41-1.41l.71.71a1 1 0 0 1 0 1.41 1 1 0 0 1 -.71.29zm12.02 12.02a1 1 0 0 1 -.7-.29l-.66-.71a1 1 0 0 1 1.36-1.36l.71.71a1 1 0 0 1 0 1.41 1 1 0 0 1 -.71.24z"></path></g></svg>`;
+const sunIcon = `<svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="#ffd43b"><circle r="5" cy="12" cx="12"></circle><path id="sun-icon" d="m21 13h-1a1 1 0 0 1 0-2h1a1 1 0 0 1 0 2zm-17 0h-1a1 1 0 0 1 0-2h1a1 1 0 0 1 0 2zm13.66-5.66a1 1 0 0 1 -.66-.29 1 1 0 0 1 0-1.41l.71-.71a1 1 0 1 1 1.41 1.41l-.71.71a1 1 0 0 1 -.75.29zm-12.02 12.02a1 1 0 0 1 -.71-.29 1 1 0 0 1 0-1.41l.71-.66a1 1 0 0 1 1.41 1.41l-.71.71a1 1 0 0 1 -.7.24zm6.36-14.36a1 1 0 0 1 -1-1v-1a1 1 0 0 1 2 0v1a1 1 0 0 1 -1 1zm0 17a1 1 0 0 1 -1-1v-1a1 1 0 0 1 2 0v1a1 1 0 0 1 -1 1zm-5.66-14.66a1 1 0 0 1 -.7-.29l-.71-.71a1 1 0 0 1 1.41-1.41l.71.71a1 1 0 0 1 0 1.41 1 1 0 0 1 -.71.29zm12.02 12.02a1 1 0 0 1 -.7-.29l-.66-.71a1 1 0 0 1 1.36-1.36l.71.71a1 1 0 0 1 0 1.41 1 1 0 0 1 -.71.24z"></path></g></svg>`
 
-const moonIcon = `<svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="m223.5 32c-123.5 0-223.5 100.3-223.5 224s100 224 223.5 224c60.6 0 115.5-24.2 155.8-63.4 5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-19.8 2.6-30.1 2.6-96.9 0-175.5-78.8-175.5-176 0-65.8 36-123.1 89.3-153.3 6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z"></path></svg>`;
+const moonIcon = `<svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="m223.5 32c-123.5 0-223.5 100.3-223.5 224s100 224 223.5 224c60.6 0 115.5-24.2 155.8-63.4 5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-19.8 2.6-30.1 2.6-96.9 0-175.5-78.8-175.5-176 0-65.8 36-123.1 89.3-153.3 6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z"></path></svg>`
 
 // Ajoutez ces variables globales
 let scoreInterval
@@ -87,6 +87,7 @@ function initGame() {
 
   // Initialize map with dark theme by default
   gameState.map = L.map("game-map").setView(config.defaultCenter, config.defaultZoom)
+  document.querySelector(".leaflet-control-zoom")?.remove()
 
   // Add tile layer (map style) - dark by default
   updateMapTheme(gameState.darkMode)
@@ -207,10 +208,10 @@ function setupEventListeners() {
 
   // Theme toggle
   elements.themeToggle.addEventListener("click", () => {
-    gameState.darkMode = !gameState.darkMode;
-    elements.themeToggle.innerHTML = gameState.darkMode ? moonIcon : sunIcon;
-    updateTheme(gameState.darkMode);
-  });
+    gameState.darkMode = !gameState.darkMode
+    elements.themeToggle.innerHTML = gameState.darkMode ? moonIcon : sunIcon
+    updateTheme(gameState.darkMode)
+  })
 
   // Switch to cat button
   if (elements.switchToCatBtn) {
@@ -235,31 +236,35 @@ function setupEventListeners() {
 // Function to switch between tabs
 function switchTab(tabName) {
   if (tabName === "map") {
-    elements.mapPage.classList.add("active");
-    elements.playersPage.classList.remove("active");
-    elements.mapTab.classList.add("active");
-    elements.playersPage.classList.remove("active");
+    elements.mapPage.classList.add("active")
+    elements.playersPage.classList.remove("active")
+    elements.mapTab.classList.add("active")
+    elements.playersTab.classList.remove("active")
 
     // Refresh map size when switching to map tab
     if (gameState.map) {
       setTimeout(() => {
-        gameState.map.invalidateSize();
-      }, 100);
+        gameState.map.invalidateSize()
+      }, 100)
     }
-    
+
     // Affiche l'onglet de la carte et cache celui des joueurs
-    elements.playersPage.style.display = 'none';
+    elements.playersPage.style.display = "none"
   } else if (tabName === "players") {
-    elements.playersPage.classList.add("active");
-    elements.mapPage.classList.remove("active");
-    elements.playersPage.classList.add("active");
-    elements.mapTab.classList.remove("active");
-    
+    elements.playersPage.classList.add("active")
+    elements.mapPage.classList.remove("active")
+    elements.playersTab.classList.add("active")
+    elements.mapTab.classList.remove("active")
+
     // Affiche l'onglet des joueurs et cache celui de la carte
-    elements.playersPage.style.display = 'block'; // Montre l'onglet des joueurs
+    elements.playersPage.style.display = "block" // Montre l'onglet des joueurs
+
+    // Update score display when switching to players tab
+    if (gameState.player) {
+      updateScoreDisplay()
+    }
   }
 }
-
 
 // Handle join game form submission
 async function handleJoinGame(e) {
@@ -417,6 +422,7 @@ async function joinGame(name, type, position) {
     if (error) {
       console.error("Error joining game:", error)
       alert("Error joining game. Please try again.")
+      hideLoading()
       return
     }
 
@@ -834,22 +840,13 @@ function handleRealtimeUpdate(payload) {
 
 // Update count badges in navbar
 function updateCountBadges() {
-  const playerCount = Array.from(gameState.players.values()).filter((p) => p.data.type === "player").length
-  const catCount = Array.from(gameState.cats.values()).length
+  // Count all players including current player
+  let playerCount = Array.from(gameState.players.values()).filter((p) => p.data.type === "player").length
+  let catCount = Array.from(gameState.cats.values()).length
 
-  // Add current player to count if they exist
-  if (gameState.player) {
-    if (gameState.player.type === "player") {
-      elements.playerCountBadge.textContent = `Joueurs: ${playerCount + 1}`
-      elements.catCountBadge.textContent = `Chats: ${catCount}`
-    } else {
-      elements.playerCountBadge.textContent = `Joueurs: ${playerCount}`
-      elements.catCountBadge.textContent = `Chats: ${catCount + 1}`
-    }
-  } else {
-    elements.playerCountBadge.textContent = `Joueurs: ${playerCount}`
-    elements.catCountBadge.textContent = `Chats: ${catCount}`
-  }
+  // Update the display with exact counts
+  elements.playerCountBadge.textContent = `Joueurs: ${playerCount}`
+  elements.catCountBadge.textContent = `Chats: ${catCount}`
 }
 
 // Modification de updateMap pour éviter de supprimer le cercle global
@@ -1012,27 +1009,37 @@ function handleEntityRemoval(entity) {
 // Update the geolocation watch to use proper interval timing
 function setupGeoLocationWatch() {
   if ("geolocation" in navigator) {
-    navigator.geolocation.watchPosition(
-      (newPosition) => {
-        const newPlayerPosition = {
-          lat: newPosition.coords.latitude,
-          lng: newPosition.coords.longitude,
-        }
+    try {
+      navigator.geolocation.watchPosition(
+        (newPosition) => {
+          const newPlayerPosition = {
+            lat: newPosition.coords.latitude,
+            lng: newPosition.coords.longitude,
+          }
 
-        if (gameState.player) {
-          gameState.player.position = newPlayerPosition
-          updateCurrentPlayerPosition(newPlayerPosition)
-        }
-      },
-      (error) => {
-        console.warn("Geolocation watch error:", error)
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 5000, // Timeout plus court pour une meilleure réactivité
-        maximumAge: 0, // Toujours obtenir la position la plus récente
-      },
-    )
+          if (gameState.player) {
+            gameState.player.position = newPlayerPosition
+            updateCurrentPlayerPosition(newPlayerPosition)
+          }
+        },
+        (error) => {
+          console.warn("Geolocation watch error:", error)
+          // Make sure loading is hidden in case of geolocation error
+          hideLoading()
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000, // Timeout plus court pour une meilleure réactivité
+          maximumAge: 0, // Toujours obtenir la position la plus récente
+        },
+      )
+    } catch (error) {
+      console.error("Error setting up geolocation watch:", error)
+      hideLoading()
+    }
+  } else {
+    console.warn("Geolocation is not supported")
+    hideLoading()
   }
 }
 
@@ -1499,8 +1506,11 @@ async function updateScore() {
 
 // Update score display
 function updateScoreDisplay() {
-  if (elements.playerScore) {
+  if (elements.playerScore && gameState.player) {
     elements.playerScore.textContent = `Score: ${Math.round(gameState.player.score)}`
+
+    // Make sure score is visible regardless of which page is active
+    elements.playerScore.style.display = "block"
   }
 }
 
