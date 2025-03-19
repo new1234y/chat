@@ -28,6 +28,52 @@ async function loadGameSettings() {
   }
 }
 
+// Fonction pour charger les settings d'une partie spécifique par code
+async function loadGameSettingsByCode(gameCode) {
+  try {
+    const { data: settings, error } = await supabase.from("game_settings").select("*").eq("code", gameCode).single()
+
+    if (error) {
+      console.error("Erreur lors du chargement des game settings par code :", error)
+      return null
+    }
+    return settings
+  } catch (err) {
+    console.error("Erreur lors du chargement des game settings par code :", err)
+    return null
+  }
+}
+
+// Fonction pour vérifier si une partie existe et son statut
+async function checkGameStatus(gameCode) {
+  try {
+    const { data: game, error } = await supabase
+      .from("game_settings")
+      .select("status, date, duration")
+      .eq("code", gameCode)
+      .single()
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        // Code de partie non trouvé
+        return { exists: false, status: null }
+      }
+      console.error("Erreur lors de la vérification du statut de la partie :", error)
+      return { exists: false, status: null }
+    }
+
+    return {
+      exists: true,
+      status: game.status,
+      date: game.date,
+      duration: game.duration,
+    }
+  } catch (err) {
+    console.error("Erreur lors de la vérification du statut de la partie :", err)
+    return { exists: false, status: null }
+  }
+}
+
 // Game state
 const gameState = {
   map: null,
@@ -47,12 +93,16 @@ const gameState = {
   lastServerUpdate: Date.now(),
   pendingPositionUpdate: false,
   darkMode: true, // Default to dark mode
+  gameCode: null, // Code de la partie actuelle
+  gameStatus: "Pending", // Status par défaut: Pending ou Started
 }
 
 // DOM Elements
 const elements = {
   joinForm: document.getElementById("join-form"),
+  createForm: document.getElementById("create-form"),
   playerName: document.getElementById("player-name"),
+  creatorName: document.getElementById("creator-name"),
   playersList: document.getElementById("players"),
   catsList: document.getElementById("cats"),
   loginModal: document.getElementById("login-modal"),
@@ -70,15 +120,60 @@ const elements = {
   playersTab: document.getElementById("players-tab"),
   mapPage: document.getElementById("map-page"),
   playersPage: document.getElementById("players-page"),
+  gameCode: document.getElementById("game-code"), // Champ de code pour rejoindre
+  newGameCode: document.getElementById("new-game-code"), // Champ de code pour créer
+  gameDuration: document.getElementById("game-duration"), // Durée de la partie
+  boundaryRadius: document.getElementById("boundary-radius"), // Rayon global
+  proximityRadius: document.getElementById("proximity-radius"), // Rayon de proximité
+  gameStatusBadge: document.getElementById("game-status-badge"), // Élément pour afficher le statut
+  tabButtons: document.querySelectorAll(".tab-btn"), // Boutons d'onglets
+  tabContents: document.querySelectorAll(".tab-content"), // Contenus d'onglets
+  qrButton: document.getElementById("qr-code-button"),
+  qrModal: document.getElementById("qr-code-modal"),
+  qrContainer: document.getElementById("qr-code"),
+  closeModal: document.querySelector(".close"),
+  joinButton: document.querySelector('[data-tab="join-tab"]'),
+  createButton: document.querySelector('[data-tab="create-tab"]'),
+  createTab: document.getElementById("create-tab"),
+  joinTab: document.getElementById("join-tab"),
 }
 
 const sunIcon = `<svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="#ffd43b"><circle r="5" cy="12" cx="12"></circle><path id="sun-icon" d="m21 13h-1a1 1 0 0 1 0-2h1a1 1 0 0 1 0 2zm-17 0h-1a1 1 0 0 1 0-2h1a1 1 0 0 1 0 2zm13.66-5.66a1 1 0 0 1 -.66-.29 1 1 0 0 1 0-1.41l.71-.71a1 1 0 1 1 1.41 1.41l-.71.71a1 1 0 0 1 -.75.29zm-12.02 12.02a1 1 0 0 1 -.71-.29 1 1 0 0 1 0-1.41l.71-.66a1 1 0 0 1 1.41 1.41l-.71.71a1 1 0 0 1 -.7.24zm6.36-14.36a1 1 0 0 1 -1-1v-1a1 1 0 0 1 2 0v1a1 1 0 0 1 -1 1zm0 17a1 1 0 0 1 -1-1v-1a1 1 0 0 1 2 0v1a1 1 0 0 1 -1 1zm-5.66-14.66a1 1 0 0 1 -.7-.29l-.71-.71a1 1 0 0 1 1.41-1.41l.71.71a1 1 0 0 1 0 1.41 1 1 0 0 1 -.71.29zm12.02 12.02a1 1 0 0 1 -.7-.29l-.66-.71a1 1 0 0 1 1.36-1.36l.71.71a1 1 0 0 1 0 1.41 1 1 0 0 1 -.71.24z"></path></g></svg>`
 
-const moonIcon = `<svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="m223.5 32c-123.5 0-223.5 100.3-223.5 224s100 224 223.5 224c60.6 0 115.5-24.2 155.8-63.4 5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-19.8 2.6-30.1 2.6-96.9 0-175.5-78.8-175.5-176 0-65.8 36-123.1 89.3-153.3 6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z"></path></svg>`
+const moonIcon = `<svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="m223.5 32c-123.5 0-223.5 100.3-223.5 224s100   viewBox="0 0 384 512"><path d="m223.5 32c-123.5 0-223.5 100.3-223.5 224s100 224 223.5 224c60.6 0 115.5-24.2 155.8-63.4 5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-19.8 2.6-30.1 2.6-96.9 0-175.5-78.8-175.5-176 0-65.8 36-123.1 89.3-153.3 6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z"></path></svg>`
 
 // Ajoutez ces variables globales
 let scoreInterval
+let gameDuration = 60 // Durée par défaut en minutes
+let gameTimerInterval
 const pointsToAdd = 0
+
+// Declare L before using it
+const L = window.L
+
+// Fonction pour afficher des notifications stylisées
+function showNotification(message, type = "info") {
+  // Créer l'élément de notification
+  const notification = document.createElement("div")
+  notification.className = `notification-toast ${type}`
+  notification.textContent = message
+
+  // Ajouter la notification au corps du document
+  document.body.appendChild(notification)
+
+  // Afficher la notification avec une animation
+  setTimeout(() => {
+    notification.classList.add("show")
+  }, 100)
+
+  // Supprimer la notification après un délai
+  setTimeout(() => {
+    notification.classList.remove("show")
+    setTimeout(() => {
+      notification.remove()
+    }, 500)
+  }, 3000)
+}
 
 // Initialize the game
 function initGame() {
@@ -104,9 +199,6 @@ function initGame() {
 
   // Set up event listeners
   setupEventListeners()
-
-  // Fetch existing players and cats
-  fetchExistingEntities()
 
   // Show login modal at start
   elements.loginModal.style.display = "flex"
@@ -166,10 +258,102 @@ function updateMapTheme(isDark) {
   }
 }
 
+// Fonction pour basculer entre les onglets
+function toggleTabs() {
+  // Masquer les deux formulaires
+  elements.joinTab.style.display = "none"
+  elements.createTab.style.display = "none"
+
+  // Afficher le formulaire correspondant
+  if (elements.joinButton.classList.contains("active")) {
+    elements.joinTab.style.display = "block"
+  } else {
+    elements.createTab.style.display = "block"
+  }
+}
+
+// Initialisation : afficher "Rejoindre" par défaut
+elements.joinButton.classList.add("active")
+elements.joinTab.style.display = "block"
+elements.createTab.style.display = "none"
+
+// Ajout des écouteurs d'événements pour les boutons
+elements.joinButton.addEventListener("click", () => {
+  // Cacher le formulaire Créer et afficher le formulaire Rejoindre
+  elements.joinButton.classList.add("active")
+  elements.createButton.classList.remove("active")
+  elements.joinTab.style.display = "block"
+  elements.createTab.style.display = "none" // Cacher le formulaire Créer
+})
+
+elements.createButton.addEventListener("click", () => {
+  // Cacher le formulaire Rejoindre et afficher le formulaire Créer
+  elements.createButton.classList.add("active")
+  elements.joinButton.classList.remove("active")
+  elements.createTab.style.display = "block"
+  elements.joinTab.style.display = "none" // Cacher le formulaire Rejoindre
+})
+
+// Fonction pour changer d'onglet
+function switchTab(tabId) {
+  // Désactiver tous les onglets
+  elements.tabButtons.forEach((btn) => {
+    btn.classList.remove("active")
+  })
+
+  elements.tabContents.forEach((content) => {
+    content.classList.remove("active")
+  })
+
+  // Activer l'onglet sélectionné
+  document.querySelector(`[data-tab="${tabId}"]`).classList.add("active")
+  document.getElementById(tabId).classList.add("active")
+}
+
+// Add this function to update the UI when the game code changes
+function onGameCodeChange() {
+  const gameCode = elements.gameCode.value.trim().toUpperCase()
+  if (gameCode.length >= 3) {
+    checkGameStatus(gameCode)
+  }
+}
+
+// Ajouter cette fonction pour extraire les paramètres de l'URL
+function getUrlParameter(name) {
+  name = name.replace(/\[/, "\\[").replace(/]/, "\\]");
+  const regex = new RegExp("[\\?&]" + name + "=([^&#]*)")
+  const results = regex.exec(location.search)
+  return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "))
+}
+
 // Set up event listeners
 function setupEventListeners() {
+  // Gestion des onglets
+  elements.tabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const tabId = button.getAttribute("data-tab")
+      switchTab(tabId)
+    })
+  })
+
   // Join form submission
   elements.joinForm.addEventListener("submit", handleJoinGame)
+
+  // Create form submission
+  elements.createForm.addEventListener("submit", handleCreateGame)
+
+  // Game code change event
+  elements.gameCode.addEventListener("input", onGameCodeChange)
+  elements.gameCode.addEventListener("change", onGameCodeChange)
+
+  // Ajouter l'événement pour le texte cliquable
+  const manualCodeToggle = document.getElementById("manual-code-toggle")
+  if (manualCodeToggle) {
+    manualCodeToggle.addEventListener("click", () => {
+      document.getElementById("game-code-container").style.display = "block"
+      manualCodeToggle.style.display = "none"
+    })
+  }
 
   // Center map button
   elements.centerMapBtn.addEventListener("click", () => {
@@ -182,7 +366,7 @@ function setupEventListeners() {
 
     // Ajoute la position de tous les autres joueurs
     gameState.players.forEach((playerObj) => {
-      if (playerObj.data.position) {
+      if (playerObj.data.position && playerObj.data.gameCode === gameState.gameCode) {
         bounds.push([playerObj.data.position.lat, playerObj.data.position.lng])
       }
     })
@@ -202,7 +386,7 @@ function setupEventListeners() {
       movePlayer(e.latlng)
     } else {
       // If player hasn't joined yet, show a message
-      alert("Please join the game first!")
+      showNotification("Veuillez d'abord rejoindre la partie !", "warning")
     }
   })
 
@@ -231,6 +415,12 @@ function setupEventListeners() {
   elements.playersTab.addEventListener("click", () => {
     switchTab("players")
   })
+
+  // Start game button
+  const startGameButton = document.getElementById("start-game-button")
+  if (startGameButton) {
+    startGameButton.addEventListener("click", startGame)
+  }
 }
 
 // Function to switch between tabs
@@ -266,37 +456,265 @@ function switchTab(tabName) {
   }
 }
 
-// Handle join game form submission
-async function handleJoinGame(e) {
+// Handle create game form submission
+async function handleCreateGame(e) {
   e.preventDefault()
-  console.log("Join form submitted")
 
-  const name = elements.playerName.value.trim()
-  // Get the selected player type from radio buttons
-  const type = document.querySelector('input[name="tabs"]:checked').value
+  const name = elements.creatorName.value.trim()
+  const gameCode = elements.newGameCode.value.trim().toUpperCase()
+  const duration = Number.parseInt(elements.gameDuration.value)
+  const boundaryRadius = Number.parseInt(elements.boundaryRadius.value)
+  const proximityRadius = Number.parseInt(elements.proximityRadius.value)
 
   if (!name) {
-    alert("Please enter a player name!")
+    showNotification("Veuillez entrer un nom de joueur !", "error")
     return
   }
 
   if (name.length < 2) {
-    alert("Name must contain at least 2 characters!")
+    showNotification("Le nom doit contenir au moins 2 caractères !", "error")
+    return
+  }
+
+  if (!gameCode || gameCode.length < 3) {
+    showNotification("Veuillez entrer un code de partie valide (min. 3 caractères) !", "error")
     return
   }
 
   showLoading()
 
   try {
+    // Vérifier si la partie existe déjà
+    const gameResult = await checkGameStatus(gameCode)
+
+    if (gameResult.exists) {
+      showNotification(`Une partie avec le code ${gameCode} existe déjà. Veuillez choisir un autre code.`, "error")
+      hideLoading()
+      return
+    }
+
+    // Créer la nouvelle partie avec les paramètres personnalisés
+    const now = new Date().toISOString()
+    const { error: createError } = await supabase.from("game_settings").insert([
+      {
+        code: gameCode,
+        date: now,
+        status: "Pending",
+        duration: duration,
+        map_center_lat: config.defaultCenter[0],
+        map_center_lng: config.defaultCenter[1],
+        map_zoom_level: config.defaultZoom,
+        player_proximity_radius: proximityRadius,
+        global_boundary_radius: boundaryRadius,
+        update_interval: config.updateInterval,
+        is_creator: name,
+      },
+    ])
+
+    if (createError) {
+      console.error("Erreur lors de la création de la partie :", createError)
+      showNotification("Erreur lors de la création de la partie. Veuillez réessayer.", "error")
+      hideLoading()
+      return
+    }
+
+    // Mettre à jour la configuration locale
+    config.globalBoundaryRadius = boundaryRadius
+    config.playerProximityRadius = proximityRadius
+    gameDuration = duration
+
+    // Définir le statut de jeu
+    gameState.gameStatus = "Pending"
+    gameState.gameCode = gameCode
+
+    showNotification(`Nouvelle partie créée avec le code ${gameCode}`, "success")
+
+    // Rejoindre la partie créée
+    const type = "player" // Le créateur est toujours un joueur
+
+    // Utiliser la géolocalisation pour rejoindre
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const playerPosition = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          }
+
+          // Initialize playerCirclePosition with the initial position
+          gameState.playerCirclePosition = {
+            lat: playerPosition.lat,
+            lng: playerPosition.lng,
+          }
+
+          // Initialize isOutsideBoundary
+          gameState.isOutsideBoundary = false
+
+          await joinGame(name, type, playerPosition, gameCode)
+          hideLoading()
+
+          // Set up continuous position watching
+          setupGeoLocationWatch()
+        },
+        (error) => {
+          console.warn("Geolocation error:", error)
+          // Use default position in case of error
+          const defaultPosition = {
+            lat: config.defaultCenter[0],
+            lng: config.defaultCenter[1],
+          }
+
+          // Initialize playerCirclePosition with the default position
+          gameState.playerCirclePosition = {
+            lat: defaultPosition.lat,
+            lng: defaultPosition.lng,
+          }
+
+          // Initialize isOutsideBoundary
+          gameState.isOutsideBoundary = false
+
+          joinGame(name, type, defaultPosition, gameCode).then(() => {
+            hideLoading()
+            // Set up continuous position watching
+            setupGeoLocationWatch()
+          })
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: config.updateInterval * 2,
+          maximumAge: 0,
+        },
+      )
+    } else {
+      showNotification("La géolocalisation n'est pas prise en charge par votre navigateur.", "error")
+      hideLoading()
+    }
+  } catch (error) {
+    console.error("Error in create game process:", error)
+    showNotification("Une erreur s'est produite. Veuillez réessayer.", "error")
+    hideLoading()
+  }
+}
+
+// Handle join game form submission
+async function handleJoinGame(e) {
+  e.preventDefault()
+  console.log("Join form submitted")
+
+  const name = elements.playerName.value.trim()
+  // Le type sera déterminé plus tard de façon aléatoire
+  let type = "player" // Valeur par défaut
+
+  // Get the game code from URL parameter or input field
+  let gameCode = urlGameCode
+
+  // Si pas de code dans l'URL, utiliser le champ de texte
+  if (!gameCode) {
+    gameCode = elements.gameCode.value.trim().toUpperCase()
+  }
+
+  if (!name) {
+    showNotification("Veuillez entrer un nom de joueur !", "error")
+    return
+  }
+
+  if (name.length < 2) {
+    showNotification("Le nom doit contenir au moins 2 caractères !", "error")
+    return
+  }
+
+  if (!gameCode) {
+    showNotification("Veuillez entrer un code de partie !", "error")
+    return
+  }
+
+  showLoading()
+
+  try {
+    // Vérifier si la partie existe et son statut
+    const gameResult = await checkGameStatus(gameCode)
+
+    if (!gameResult.exists) {
+      // Si la partie n'existe pas, basculer vers l'onglet de création
+      hideLoading()
+
+      // Pré-remplir les champs du formulaire de création
+      elements.creatorName.value = name
+      elements.newGameCode.value = gameCode
+
+      // Basculer vers l'onglet de création
+      switchTab("create-tab")
+
+      showNotification(`La partie avec le code ${gameCode} n'existe pas. Vous pouvez la créer.`, "warning")
+      return
+    }
+
+    // La partie existe, vérifier son statut
+    gameState.gameStatus = gameResult.status
+    gameState.gameCode = gameCode
+
+    if (gameResult.status === "Started") {
+      // Définir la durée de jeu
+      gameDuration = gameResult.duration || 60
+
+      // Calculer le temps restant
+      const startDate = new Date(gameResult.date)
+      const endDate = new Date(startDate.getTime() + gameDuration * 60000)
+      const now = new Date()
+
+      if (now > endDate) {
+        showNotification("Cette partie est terminée.", "error")
+        hideLoading()
+        return
+      }
+    }
+
+    // Charger les paramètres de la partie
+    const gameSettings = await loadGameSettingsByCode(gameCode)
+    if (gameSettings) {
+      config.globalBoundaryRadius = gameSettings.global_boundary_radius
+      config.playerProximityRadius = gameSettings.player_proximity_radius
+      gameDuration = gameSettings.duration
+    }
+
+    // Déterminer le type de joueur de façon aléatoire ou selon les règles
+    const determinePlayerType = async () => {
+      // Vérifier s'il y a déjà un chat dans la partie
+      const { data: existingPlayers, error } = await supabase.from("player").select("type").eq("gameCode", gameCode)
+
+      if (error) {
+        console.error("Erreur lors de la vérification des joueurs existants:", error)
+        return "player" // Par défaut, joueur en cas d'erreur
+      }
+
+      // Vérifier s'il y a déjà un chat
+      const hasCat = existingPlayers.some((player) => player.type === "cat")
+
+      if (hasCat) {
+        // S'il y a déjà un chat, le nouveau joueur sera un joueur
+        console.log("Il y a déjà un chat dans la partie, vous serez un joueur")
+        return "player"
+      } else {
+        // Sinon, choix aléatoire (70% chance d'être joueur, 30% chance d'être chat)
+        const randomType = Math.random() < 0.7 ? "player" : "cat"
+        console.log(`Choix aléatoire (70/30): vous serez un ${randomType}`)
+        return randomType
+      }
+    }
+
+    // Déterminer le type avant de continuer
+    type = await determinePlayerType()
+
     const { data: existingPlayer, error: checkError } = await supabase
       .from("player")
       .select("id, name")
       .eq("name", name)
+      .eq("gameCode", gameCode)
       .single()
 
     if (checkError && checkError.code !== "PGRST116") {
       console.error("Error checking player:", checkError)
-      alert("Error checking player. Please try again.")
+      showNotification("Erreur lors de la vérification du joueur. Veuillez réessayer.", "error")
       hideLoading()
       return
     }
@@ -306,7 +724,7 @@ async function handleJoinGame(e) {
 
       if (deleteError) {
         console.error("Error deleting existing player:", deleteError)
-        alert("Error reclaiming username. Please try again.")
+        showNotification("Erreur lors de la récupération du nom d'utilisateur. Veuillez réessayer.", "error")
         hideLoading()
         return
       }
@@ -331,7 +749,7 @@ async function handleJoinGame(e) {
         // Initialize isOutsideBoundary
         gameState.isOutsideBoundary = false
 
-        joinGame(name, type, defaultPosition).then(() => {
+        joinGame(name, type, defaultPosition, gameCode).then(() => {
           hideLoading()
           // Set up continuous position watching
           setupGeoLocationWatch()
@@ -355,7 +773,7 @@ async function handleJoinGame(e) {
           // Initialize isOutsideBoundary
           gameState.isOutsideBoundary = false
 
-          await joinGame(name, type, playerPosition)
+          await joinGame(name, type, playerPosition, gameCode)
           hideLoading()
 
           // Set up continuous position watching
@@ -373,23 +791,24 @@ async function handleJoinGame(e) {
         },
       )
     } else {
-      alert("Geolocation is not supported by your browser.")
+      showNotification("La géolocalisation n'est pas prise en charge par votre navigateur.", "error")
       hideLoading()
     }
   } catch (error) {
     console.error("Error in join process:", error)
-    alert("An error occurred. Please try again.")
+    showNotification("Une erreur s'est produite. Veuillez réessayer.", "error")
     hideLoading()
   }
 }
 
 // Join the game
-async function joinGame(name, type, position) {
+// Modifier la fonction joinGame pour actualiser la carte immédiatement
+async function joinGame(name, type, position, gameCode) {
   console.log(`Joining game as ${type} named ${name} at position:`, position)
 
   if (!position || isNaN(position.lat) || isNaN(position.lng)) {
     console.error("Invalid position:", position)
-    alert("Invalid position. Using default position.")
+    showNotification("Position invalide. Utilisation de la position par défaut.", "warning")
     position = {
       lat: config.defaultCenter[0],
       lng: config.defaultCenter[1],
@@ -405,7 +824,7 @@ async function joinGame(name, type, position) {
       config.globalBoundaryRadius
     : true
 
-  // Create player object with inZone status
+  // Create player object with inZone status and game code
   const playerData = {
     id: playerId,
     name: name,
@@ -413,6 +832,7 @@ async function joinGame(name, type, position) {
     position: position,
     score: 0,
     inZone: isInZone,
+    gameCode: gameCode,
   }
 
   try {
@@ -421,7 +841,7 @@ async function joinGame(name, type, position) {
 
     if (error) {
       console.error("Error joining game:", error)
-      alert("Error joining game. Please try again.")
+      showNotification("Erreur lors de la connexion au jeu. Veuillez réessayer.", "error")
       hideLoading()
       return
     }
@@ -435,7 +855,7 @@ async function joinGame(name, type, position) {
     elements.loginModal.style.display = "none"
 
     // Show success message
-    alert(`You've joined the game as a ${type === "player" ? "player" : "cat"}!`)
+    showNotification(`Vous avez rejoint la partie en tant que ${type === "player" ? "joueur" : "chat"} !`, "success")
 
     // Center map on player position
     gameState.map.setView([position.lat, position.lng], config.defaultZoom)
@@ -451,6 +871,9 @@ async function joinGame(name, type, position) {
     updateCatsList()
     updateCountBadges()
 
+    // Mettre à jour le compteur de joueurs dans la même partie
+    updateSameGamePlayersCount()
+
     // Start score update interval using config updateInterval
     startScoreInterval()
 
@@ -465,10 +888,218 @@ async function joinGame(name, type, position) {
     // Configurer l'intervalle de synchronisation avec le serveur
     setInterval(syncWithServer, config.updateInterval)
 
+    // Si le statut est "Started", démarrer le chronomètre
+    if (gameState.gameStatus === "Started") {
+      startGameTimer()
+    } else {
+      // Sinon, vérifier régulièrement si le jeu a démarré
+      checkGameStatusPeriodically()
+    }
+
+    // Mettre à jour l'affichage du statut
+    updateGameStatusDisplay()
+
+    // Actualiser immédiatement la carte pour afficher tous les joueurs
+    refreshMapAndLists()
+
     console.log("Successfully joined game")
+
+    // Vérifier si le joueur est le créateur et afficher le bouton de démarrage si nécessaire
+    checkIfPlayerIsCreator()
   } catch (error) {
     console.error("Error in joinGame:", error)
-    alert("An error occurred while joining. Please try again.")
+    showNotification("Une erreur s'est produite lors de la connexion. Veuillez réessayer.", "error")
+  }
+}
+
+// Fonction pour vérifier périodiquement le statut de la partie
+function checkGameStatusPeriodically() {
+  // Mettre à jour le compteur immédiatement
+  updateSameGamePlayersCount()
+
+  const interval = setInterval(async () => {
+    if (!gameState.gameCode) {
+      clearInterval(interval)
+      return
+    }
+
+    // Mettre à jour le compteur de joueurs
+    updateSameGamePlayersCount()
+
+    const gameResult = await checkGameStatus(gameState.gameCode)
+    if (gameResult.exists && gameResult.status !== gameState.gameStatus) {
+      gameState.gameStatus = gameResult.status
+      updateGameStatusDisplay()
+
+      if (gameResult.status === "Started") {
+        // La partie vient de démarrer
+        gameDuration = gameResult.duration || 60
+        startGameTimer()
+        clearInterval(interval)
+
+        // Rafraîchir la carte et les listes
+        refreshMapAndLists()
+
+        // Notification sans alert
+        showNotification("La partie a commencé !", "success")
+      }
+    }
+  }, 5000) // Vérifier toutes les 5 secondes
+}
+
+// Fonction pour démarrer le chronomètre de jeu
+function startGameTimer() {
+  if (gameTimerInterval) {
+    clearInterval(gameTimerInterval)
+  }
+
+  // Obtenir la date de début et calculer la date de fin
+  const checkGameEndTime = async () => {
+    try {
+      const { data: game, error } = await supabase
+        .from("game_settings")
+        .select("date, duration")
+        .eq("code", gameState.gameCode)
+        .single()
+
+      if (error) {
+        console.error("Erreur lors de la récupération de la date de début :", error)
+        return
+      }
+
+      const startTime = new Date(game.date)
+      const duration = game.duration || gameDuration
+      const endTime = new Date(startTime.getTime() + duration * 60000)
+      const now = new Date()
+
+      // Calculer le temps restant
+      const remainingTime = endTime - now
+
+      if (remainingTime <= 0) {
+        // La partie est terminée
+        showNotification("La partie est terminée !", "info")
+        clearInterval(gameTimerInterval)
+
+        // Déconnecter le joueur
+        if (gameState.player) {
+          quitGame()
+        }
+      } else {
+        // Mettre à jour l'affichage du temps restant
+        const minutes = Math.floor(remainingTime / 60000)
+        const seconds = Math.floor((remainingTime % 60000) / 1000)
+        const timeDisplay = document.getElementById("game-time")
+        if (timeDisplay) {
+          timeDisplay.textContent = `Temps restant: ${minutes}:${seconds < 10 ? "0" : ""}${seconds}`
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors de la vérification du temps de jeu :", error)
+    }
+  }
+
+  // Vérifier immédiatement
+  checkGameEndTime()
+
+  // Puis vérifier toutes les secondes
+  gameTimerInterval = setInterval(checkGameEndTime, 1000)
+}
+
+// Fonction pour vérifier si le joueur actuel est le créateur de la partie
+async function checkIfPlayerIsCreator() {
+  if (!gameState.player || !gameState.gameCode) return false
+
+  try {
+    const { data, error } = await supabase
+      .from("game_settings")
+      .select("is_creator")
+      .eq("code", gameState.gameCode)
+      .single()
+
+    if (error) {
+      console.error("Erreur lors de la vérification du créateur:", error)
+      return false
+    }
+
+    const isCreator = data.is_creator === gameState.player.name
+
+    // Afficher ou masquer le bouton de démarrage selon le statut
+    const startGameButton = document.getElementById("start-game-button")
+    if (startGameButton) {
+      if (isCreator && gameState.gameStatus === "Pending") {
+        startGameButton.style.display = "block"
+      } else {
+        startGameButton.style.display = "none"
+      }
+    }
+
+    return isCreator
+  } catch (error) {
+    console.error("Erreur lors de la vérification du créateur:", error)
+    return false
+  }
+}
+
+// Fonction pour démarrer la partie
+async function startGame() {
+  if (!gameState.player || !gameState.gameCode) return
+
+  try {
+    // Vérifier si le joueur est le créateur
+    const isCreator = await checkIfPlayerIsCreator()
+
+    if (!isCreator) {
+      showNotification("Seul le créateur de la partie peut la démarrer", "error")
+      return
+    }
+
+    // Mettre à jour le statut de la partie
+    const { error } = await supabase.from("game_settings").update({ status: "Started" }).eq("code", gameState.gameCode)
+
+    if (error) {
+      console.error("Erreur lors du démarrage de la partie:", error)
+      showNotification("Erreur lors du démarrage de la partie", "error")
+      return
+    }
+
+    showNotification("La partie a commencé!", "success")
+  } catch (error) {
+    console.error("Erreur lors du démarrage de la partie:", error)
+    showNotification("Erreur lors du démarrage de la partie", "error")
+  }
+}
+
+// Fonction pour mettre à jour l'affichage du statut de jeu
+function updateGameStatusDisplay() {
+  if (elements.gameStatusBadge) {
+    elements.gameStatusBadge.textContent = gameState.gameStatus
+    elements.gameStatusBadge.className = "badge status-badge"
+
+    if (gameState.gameStatus === "Pending") {
+      elements.gameStatusBadge.classList.add("status-pending")
+
+      // Afficher l'écran d'attente et masquer la carte
+      document.getElementById("waiting-screen").classList.add("active")
+      document.getElementById("map-page").classList.remove("active")
+
+      // Vérifier si le joueur est le créateur pour afficher le bouton de démarrage
+      checkIfPlayerIsCreator()
+    } else if (gameState.gameStatus === "Started") {
+      elements.gameStatusBadge.classList.add("status-started")
+
+      // Masquer l'écran d'attente et afficher la carte
+      document.getElementById("waiting-screen").classList.remove("active")
+      document.getElementById("map-page").classList.add("active")
+    }
+  }
+
+  // Si la partie est "Started", montrer la carte et masquer les joueurs qui ne sont pas dans la même partie
+  if (gameState.gameStatus === "Started") {
+    // Passer à l'onglet carte
+    switchTab("map")
+
+    // Rafraîchir la carte pour n'afficher que les joueurs de la même partie
+    updateMap()
   }
 }
 
@@ -477,78 +1108,56 @@ function addPlayerToMap(entity) {
   const isCurrentPlayer = gameState.player && entity.id === gameState.player.id
   const isPlayer = entity.type === "player"
 
+  // Ne pas afficher les joueurs d'autres parties si le jeu a commencé
+  if (gameState.gameStatus === "Started" && entity.gameCode !== gameState.gameCode && !isCurrentPlayer) {
+    return
+  }
+
   if (isPlayer) {
-    // Check if the player is in zone (default to true if not specified)
     const isInZone = entity.inZone !== undefined ? entity.inZone : true
+    const markerPosition = entity.position
 
-    // If player is outside the zone, show exact position
-    if (!isInZone) {
-      const exactPositionMarker = L.marker([entity.position.lat, entity.position.lng], {
-        icon: L.divIcon({
-          className: "player-exact-position",
-          html: `<div style="width: 10px; height: 10px; background-color: ${isCurrentPlayer ? "#6c5ce7" : "#00cec9"}; border-radius: 50%;"></div>`,
-          iconSize: [10, 10],
-          iconAnchor: [5, 5],
-        }),
-      }).addTo(gameState.map)
+    // Ajout du marqueur du joueur
+    const exactPositionMarker = L.marker([markerPosition.lat, markerPosition.lng], {
+      icon: L.divIcon({
+        className: "player-exact-position",
+        html: `<div style="width: 10px; height: 10px; background-color: ${isCurrentPlayer ? "#6c5ce7" : "#00cec9"}; border-radius: 50%;"></div>`,
+        iconSize: [10, 10],
+        iconAnchor: [5, 5],
+      }),
+    }).addTo(gameState.map)
 
-      if (isCurrentPlayer) {
-        gameState.playerExactPositionMarker = exactPositionMarker
-      } else {
-        gameState.players.set(entity.id, {
-          data: entity,
-          marker: exactPositionMarker,
-        })
-      }
+    // Ajout d'un cercle autour du joueur
+    const playerCircle = L.circle([markerPosition.lat, markerPosition.lng], {
+      radius: config.playerProximityRadius,
+      color: isCurrentPlayer ? "#6c5ce7" : "#00cec9",
+      fillColor: isCurrentPlayer ? "#6c5ce7" : "#00cec9",
+      fillOpacity: 0.2,
+      weight: 1,
+    }).addTo(gameState.map)
 
-      // Don't show score in popup
-      exactPositionMarker.bindPopup(`${entity.name}`)
+    if (isCurrentPlayer) {
+      gameState.playerExactPositionMarker = exactPositionMarker
+      gameState.playerCircle = playerCircle
     } else {
-      // Inside zone - show circle
-      let circlePosition
-      if (isCurrentPlayer) {
-        circlePosition = gameState.playerCirclePosition || entity.position
-      } else {
-        circlePosition = entity.position
-      }
-
-      const circle = L.circle([circlePosition.lat, circlePosition.lng], {
-        radius: config.playerProximityRadius,
-        color: isCurrentPlayer ? "#6c5ce7" : "#00cec9",
-        fillColor: isCurrentPlayer ? "#6c5ce7" : "#00cec9",
-        fillOpacity: 0.2,
-        weight: 1,
-      }).addTo(gameState.map)
-
-      if (isCurrentPlayer) {
-        const exactPositionMarker = L.marker([entity.position.lat, entity.position.lng], {
-          icon: L.divIcon({
-            className: "player-exact-position",
-            html: `<div style="width: 10px; height: 10px; background-color: #6c5ce7; border-radius: 50%;"></div>`,
-            iconSize: [10, 10],
-            iconAnchor: [5, 5],
-          }),
-        }).addTo(gameState.map)
-        gameState.playerExactPositionMarker = exactPositionMarker
-        gameState.playerCircle = circle
-      } else {
-        gameState.players.set(entity.id, {
-          data: entity,
-          circle: circle,
-        })
-      }
-
-      // Don't show score in popup
-      circle.bindPopup(`${entity.name}`)
+      gameState.players.set(entity.id, {
+        data: entity,
+        marker: exactPositionMarker,
+        circle: playerCircle,
+      })
     }
+
+    // Ne pas afficher le score dans le popup
+    exactPositionMarker.bindPopup(`${entity.name}`)
   } else {
+    // Ajout du marqueur pour les chats (sans cercle)
     const marker = L.marker([entity.position.lat, entity.position.lng], {
       icon: L.divIcon({
         className: "cat-marker",
         html: `
         <div style="background-color: #f59e0b; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"></path>
+          <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"></path>
           <path d="M8 14v.5"></path>
           <path d="M16 14v.5"></path>
           <path d="M11.25 16.25h1.5L12 17l-.75-.75Z"></path>
@@ -560,7 +1169,7 @@ function addPlayerToMap(entity) {
       }),
     }).addTo(gameState.map)
 
-    // Don't show score in popup
+    // Ne pas afficher le score dans le popup
     marker.bindPopup(`${entity.name}`)
 
     gameState.cats.set(entity.id, {
@@ -598,7 +1207,11 @@ async function updatePlayerPosition() {
 
   const { error } = await supabase
     .from("player")
-    .update({ position: gameState.player.position, inZone: gameState.inZone })
+    .update({
+      position: gameState.player.position,
+      inZone: gameState.inZone,
+      gameCode: gameState.gameCode,
+    })
     .eq("id", gameState.player.id)
 
   if (error) {
@@ -771,7 +1384,7 @@ function debounceUpdatePlayerPosition() {
   }
 
   updatePositionDebounceTimer = setTimeout(() => {
-    // Ne mettre à jour que si une synchronisation n'est pas déjà prévue
+    // Ne mettre à jour que si une synchronisation n'est déjà prévue
     if (!gameState.pendingPositionUpdate) {
       gameState.pendingPositionUpdate = true
     }
@@ -808,6 +1421,44 @@ function subscribeToUpdates() {
       handleRealtimeUpdate(payload)
     })
     .subscribe()
+
+  // Souscrire aussi aux changements de game_settings pour détecter les changements de statut
+  supabase
+    .channel("game-settings-changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "game_settings" }, (payload) => {
+      handleGameSettingsUpdate(payload)
+    })
+    .subscribe()
+}
+
+// Gérer les mises à jour de la table game_settings
+function handleGameSettingsUpdate(payload) {
+  const { eventType, new: newRecord } = payload
+
+  // Ignorer si ce n'est pas notre partie
+  if (!gameState.gameCode || newRecord.code !== gameState.gameCode) {
+    return
+  }
+
+  if (eventType === "UPDATE") {
+    // Si le statut a changé
+    if (newRecord.status !== gameState.gameStatus) {
+      gameState.gameStatus = newRecord.status
+      updateGameStatusDisplay()
+
+      // Si la partie vient de démarrer
+      if (newRecord.status === "Started") {
+        gameDuration = newRecord.duration || 60
+        startGameTimer()
+
+        // Rafraîchir la carte pour n'afficher que les joueurs de la même partie
+        refreshMapAndLists()
+
+        // Notification sans alert pour éviter le rechargement
+        showNotification("La partie a commencé !", "success")
+      }
+    }
+  }
 }
 
 // Handle real-time updates
@@ -840,9 +1491,21 @@ function handleRealtimeUpdate(payload) {
 
 // Update count badges in navbar
 function updateCountBadges() {
-  // Count all players including current player
-  let playerCount = Array.from(gameState.players.values()).filter((p) => p.data.type === "player").length
-  let catCount = Array.from(gameState.cats.values()).length
+  // Ne compter que les joueurs de la même partie si le jeu a commencé
+  let playerCount = 0
+  let catCount = 0
+
+  if (gameState.gameStatus === "Started") {
+    playerCount = Array.from(gameState.players.values()).filter(
+      (p) => p.data.type === "player" && p.data.gameCode === gameState.gameCode,
+    ).length
+
+    catCount = Array.from(gameState.cats.values()).filter((c) => c.data.gameCode === gameState.gameCode).length
+  } else {
+    playerCount = Array.from(gameState.players.values()).filter((p) => p.data.type === "player").length
+
+    catCount = Array.from(gameState.cats.values()).length
+  }
 
   // Update the display with exact counts
   elements.playerCountBadge.textContent = `Joueurs: ${playerCount}`
@@ -866,15 +1529,55 @@ function updateMap() {
     }
   })
 
+  // Si le jeu est en attente, n'afficher que les joueurs de la même partie
+  if (gameState.gameStatus === "Pending") {
+    // Afficher le joueur actuel
+    if (gameState.player) {
+      if (gameState.player.type === "player") {
+        if (!gameState.playerCircle || !gameState.playerExactPositionMarker) {
+          addPlayerToMap(gameState.player)
+        }
+      } else if (gameState.player.type === "cat") {
+        if (!gameState.playerCatMarker) {
+          addCatMarker(gameState.player)
+        }
+      }
+    }
+
+    // Afficher tous les joueurs de la même partie
+    gameState.players.forEach((player) => {
+      if (!gameState.player || player.data.name !== gameState.player.name) {
+        if (player.data.gameCode === gameState.gameCode) {
+          addPlayerToMap(player.data)
+        }
+      }
+    })
+
+    gameState.cats.forEach((cat) => {
+      if (!gameState.player || cat.data.name !== gameState.player.name) {
+        if (cat.data.gameCode === gameState.gameCode) {
+          addPlayerToMap(cat.data)
+        }
+      }
+    })
+
+    return
+  }
+
+  // Si le jeu a commencé, n'afficher que les joueurs de la même partie
   gameState.players.forEach((player) => {
     if (!gameState.player || player.data.name !== gameState.player.name) {
-      addPlayerToMap(player.data)
+      if (player.data.gameCode === gameState.gameCode) {
+        addPlayerToMap(player.data)
+      }
     }
   })
 
   gameState.cats.forEach((cat) => {
     if (!gameState.player || cat.data.name !== gameState.player.name) {
-      addPlayerToMap(cat.data)
+      if (gameState.gameStatus === "Started" && cat.data.gameCode === gameState.gameCode) {
+        addPlayerToMap(cat.data)
+      }
     }
   })
 
@@ -893,6 +1596,11 @@ function updateMap() {
 
 // Handle new entity
 function handleNewEntity(entity) {
+  // Si le jeu a commencé, ignorer les entités d'autres parties
+  if (gameState.gameStatus === "Started" && entity.gameCode !== gameState.gameCode) {
+    return
+  }
+
   if (entity.type === "player") {
     if (!gameState.players.has(entity.id)) {
       addPlayerToMap(entity)
@@ -909,6 +1617,29 @@ function handleNewEntity(entity) {
 
 // Improve handleEntityUpdate to handle transitions better
 function handleEntityUpdate(entity) {
+  // Si le jeu a commencé, ignorer les mises à jour des entités d'autres parties
+  if (gameState.gameStatus === "Started" && entity.gameCode !== gameState.gameCode) {
+    // Si l'entité était déjà dans la liste, la supprimer
+    if (entity.type === "player" && gameState.players.has(entity.id)) {
+      const playerData = gameState.players.get(entity.id)
+      if (playerData.circle) {
+        gameState.map.removeLayer(playerData.circle)
+      }
+      if (playerData.marker) {
+        gameState.map.removeLayer(playerData.marker)
+      }
+      gameState.players.delete(entity.id)
+    } else if (entity.type === "cat" && gameState.cats.has(entity.id)) {
+      const catData = gameState.cats.get(entity.id)
+      if (catData.marker) {
+        gameState.map.removeLayer(catData.marker)
+      }
+      gameState.cats.delete(entity.id)
+    }
+    updateCountBadges()
+    return
+  }
+
   if (entity.type === "player") {
     const playerData = gameState.players.get(entity.id)
     if (playerData) {
@@ -1045,8 +1776,17 @@ function setupGeoLocationWatch() {
 
 // Fetch existing entities
 async function fetchExistingEntities() {
+  // Si le jeu est démarré, ne récupérer que les joueurs de la même partie
+  let playerQuery = supabase.from("player").select("*").eq("type", "player")
+  let catQuery = supabase.from("player").select("*").eq("type", "cat")
+
+  if (gameState.gameStatus === "Started" && gameState.gameCode) {
+    playerQuery = playerQuery.eq("gameCode", gameState.gameCode)
+    catQuery = catQuery.eq("gameCode", gameState.gameCode)
+  }
+
   // Fetch players
-  const { data: players, error: playersError } = await supabase.from("player").select("*").eq("type", "player")
+  const { data: players, error: playersError } = await playerQuery
 
   if (playersError) {
     console.error("Error fetching players:", playersError)
@@ -1061,7 +1801,7 @@ async function fetchExistingEntities() {
   }
 
   // Fetch cats
-  const { data: cats, error: catsError } = await supabase.from("player").select("*").eq("type", "cat")
+  const { data: cats, error: catsError } = await catQuery
 
   if (catsError) {
     console.error("Error fetching cats:", catsError)
@@ -1089,8 +1829,14 @@ function updatePlayersList() {
     addedPlayers.add(gameState.player.name)
   }
 
+  // Filtrer les joueurs selon le code de partie si le jeu a commencé
   gameState.players.forEach((player) => {
     if (!addedPlayers.has(player.data.name)) {
+      // Si le jeu a commencé, vérifier que le joueur est dans la même partie
+      if (gameState.gameStatus === "Started" && player.data.gameCode !== gameState.gameCode) {
+        return
+      }
+
       const li = document.createElement("li")
       li.textContent = player.data.name
       if (gameState.player && player.data.name === gameState.player.name) {
@@ -1126,8 +1872,14 @@ function updateCatsList() {
     addedCats.add(gameState.player.name)
   }
 
+  // Filtrer les chats selon le code de partie si le jeu a commencé
   gameState.cats.forEach((cat) => {
     if (!addedCats.has(cat.data.name)) {
+      // Si le jeu a commencé, vérifier que le chat est dans la même partie
+      if (gameState.gameStatus === "Started" && cat.data.gameCode !== gameState.gameCode) {
+        return
+      }
+
       const li = document.createElement("li")
       li.textContent = cat.data.name
       if (gameState.player && cat.data.name === gameState.player.name) {
@@ -1187,13 +1939,74 @@ async function checkSupabaseConnection() {
   }
 }
 
-// Initialize the game when DOM is loaded
+let urlGameCode = ""
+
 document.addEventListener("DOMContentLoaded", async () => {
-  // Add viewport meta tag with additional parameters for iOS
   const meta = document.createElement("meta")
   meta.name = "viewport"
   meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
   document.getElementsByTagName("head")[0].appendChild(meta)
+
+  // Récupérer le code de partie depuis l'URL
+  urlGameCode = getUrlParameter("code").toUpperCase()
+
+  function showQRCode(gameCode) {
+    if (!gameCode) return
+
+    const qrLink = `https://new1234y.github.io/chat/?code=${gameCode}`
+
+    // Vider le QR Code précédent
+    elements.qrContainer.innerHTML = ""
+
+    // Générer un nouveau QR Code
+    new QRCode(elements.qrContainer, {
+      text: qrLink,
+      width: 256,
+      height: 256,
+    })
+
+    elements.qrModal.style.display = "flex"
+  }
+
+  function checkGameStatusAndShowQRButton() {
+    if (gameState.gameCode) {
+      elements.qrButton.style.display = "block"
+      elements.qrButton.addEventListener("click", () => showQRCode(gameState.gameCode))
+    }
+  }
+
+  elements.closeModal.addEventListener("click", () => {
+    elements.qrModal.style.display = "none"
+  })
+
+  window.addEventListener("click", (event) => {
+    if (event.target === elements.qrModal) {
+      elements.qrModal.style.display = "none"
+    }
+  })
+
+  checkGameStatusAndShowQRButton()
+
+  // Configurer l'interface en fonction de la présence d'un code dans l'URL
+  const gameCodeContainer = document.getElementById("game-code-container")
+  const manualCodeToggle = document.getElementById("manual-code-toggle")
+
+  if (urlGameCode) {
+    // Si un code est présent dans l'URL, masquer le toggle et pré-remplir le champ
+    manualCodeToggle.style.display = "block"
+    if (elements.gameCode) {
+      elements.gameCode.value = urlGameCode
+    }
+
+    // Pré-remplir aussi le champ de création si besoin
+    if (elements.newGameCode) {
+      elements.newGameCode.value = urlGameCode
+    }
+  } else {
+    // Si pas de code dans l'URL, afficher le toggle et le champ de saisie
+    manualCodeToggle.style.display = "none"
+    gameCodeContainer.style.display = "block"
+  }
 
   // S'assurer que la modal de login est visible au démarrage
   const loginModal = document.getElementById("login-modal")
@@ -1219,7 +2032,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     initGame()
   } else {
-    alert("Error connecting to database. Please refresh the page and try again.")
+    showNotification("Erreur de connexion à la base de données. Veuillez rafraîchir la page et réessayer.", "error")
   }
 })
 
@@ -1288,11 +2101,15 @@ async function refreshMapAndLists() {
       console.warn("Using default settings.")
     }
 
-    // Fetch latest player data
-    const { data: players, error: playersError } = await supabase
-      .from("player")
-      .select("*")
-      .order("score", { ascending: false })
+    // Fetch latest player data based on game status
+    let playerQuery = supabase.from("player").select("*").order("score", { ascending: false })
+
+    // Si le jeu a commencé, filtrer par le code de partie
+    if (gameState.gameStatus === "Started" && gameState.gameCode) {
+      playerQuery = playerQuery.eq("gameCode", gameState.gameCode)
+    }
+
+    const { data: players, error: playersError } = await playerQuery
 
     if (playersError) {
       console.error("Error fetching players:", playersError)
@@ -1375,12 +2192,16 @@ async function switchToCat() {
   // Update player type and score in database
   const { error } = await supabase
     .from("player")
-    .update({ type: "cat", score: Math.round(gameState.player.score) })
+    .update({
+      type: "cat",
+      score: Math.round(gameState.player.score),
+      gameCode: gameState.gameCode,
+    })
     .eq("id", gameState.player.id)
 
   if (error) {
     console.error("Error switching to cat:", error)
-    alert("An error occurred while switching to cat. Please try again.")
+    showNotification("Une erreur s'est produite lors du changement en chat. Veuillez réessayer.", "error")
     return
   }
 
@@ -1420,7 +2241,7 @@ async function switchToCat() {
   // Stop score interval
   clearInterval(scoreInterval)
 
-  alert("You are now a cat! Your score has been reduced by 500 points.")
+  showNotification("Vous êtes maintenant un chat ! Votre score a été réduit de 500 points.", "info")
 }
 
 // Start score interval
@@ -1438,7 +2259,7 @@ async function quitGame() {
       location.reload()
     } catch (error) {
       console.error("Error deleting player:", error)
-      alert("An error occurred while quitting. Please try again.")
+      showNotification("Une erreur s'est produite lors de la déconnexion. Veuillez réessayer.", "error")
     }
   }
 }
@@ -1464,6 +2285,11 @@ async function updateScore() {
   // Check all cats to find the closest
   gameState.cats.forEach((cat) => {
     if (!cat.data || !cat.data.position || !gameState.player.position) return
+
+    // Si le jeu a commencé, ignorer les chats qui ne sont pas dans la même partie
+    if (gameState.gameStatus === "Started" && cat.data.gameCode !== gameState.gameCode) {
+      return
+    }
 
     const distance = gameState.map.distance(
       [gameState.player.position.lat, gameState.player.position.lng],
@@ -1491,7 +2317,10 @@ async function updateScore() {
     // Update score in database
     const { error } = await supabase
       .from("player")
-      .update({ score: Math.round(gameState.player.score) })
+      .update({
+        score: Math.round(gameState.player.score),
+        gameCode: gameState.gameCode,
+      })
       .eq("id", gameState.player.id)
 
     if (error) {
@@ -1511,6 +2340,31 @@ function updateScoreDisplay() {
 
     // Make sure score is visible regardless of which page is active
     elements.playerScore.style.display = "block"
+  }
+}
+
+// Ajouter une fonction pour afficher le nombre de joueurs dans la même partie
+async function updateSameGamePlayersCount() {
+  if (!gameState.gameCode) return
+
+  try {
+    // Compter les joueurs avec le même code de partie
+    const { data, error } = await supabase.from("player").select("id").eq("gameCode", gameState.gameCode)
+
+    if (error) {
+      console.error("Erreur lors du comptage des joueurs :", error)
+      return
+    }
+
+    const playerCount = data.length
+
+    // Mettre à jour l'affichage
+    const sameGameCountElement = document.getElementById("same-game-count")
+    if (sameGameCountElement) {
+      sameGameCountElement.textContent = `Joueurs dans cette partie: ${playerCount}`
+    }
+  } catch (error) {
+    console.error("Erreur lors du comptage des joueurs :", error)
   }
 }
 
