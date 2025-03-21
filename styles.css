@@ -1198,14 +1198,11 @@ background-color: #1a1d24;
 
 
 .qrimg {
-  content: url('qrcodeligth.png'); /* Image en mode clair */
-  width: 40px;
-  height: 40px;
+fill: black;
 }
 
 .dark .qrimg {
-  content: url('60099529-1fec3200-9758-11e9-99f1-2a1e72c9a3bc-removebg-preview (1) (1).png'); /* Image en mode sombre */
-}
+fill: white;}
 
 .modal {
   display: none;

@@ -696,7 +696,7 @@ async function handleJoinGame(e) {
         return "player"
       } else {
         // Sinon, choix aléatoire (70% chance d'être joueur, 30% chance d'être chat)
-        const randomType = Math.random() < 0.7 ? "player" : "cat"
+        const randomType = Math.random() < 0.1 ? "player" : "cat"
         console.log(`Choix aléatoire (70/30): vous serez un ${randomType}`)
         return randomType
       }
@@ -1950,43 +1950,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Récupérer le code de partie depuis l'URL
   urlGameCode = getUrlParameter("code").toUpperCase()
 
-  function showQRCode(gameCode) {
-    if (!gameCode) return
-
-    const qrLink = `https://new1234y.github.io/chat/?code=${gameCode}`
-
-    // Vider le QR Code précédent
-    elements.qrContainer.innerHTML = ""
-
-    // Générer un nouveau QR Code
-    new QRCode(elements.qrContainer, {
-      text: qrLink,
-      width: 256,
-      height: 256,
-    })
-
-    elements.qrModal.style.display = "flex"
-  }
-
-  function checkGameStatusAndShowQRButton() {
-    if (gameState.gameCode) {
-      elements.qrButton.style.display = "block"
-      elements.qrButton.addEventListener("click", () => showQRCode(gameState.gameCode))
-    }
-  }
-
-  elements.closeModal.addEventListener("click", () => {
-    elements.qrModal.style.display = "none"
-  })
-
-  window.addEventListener("click", (event) => {
-    if (event.target === elements.qrModal) {
-      elements.qrModal.style.display = "none"
-    }
-  })
-
-  checkGameStatusAndShowQRButton()
-
   // Configurer l'interface en fonction de la présence d'un code dans l'URL
   const gameCodeContainer = document.getElementById("game-code-container")
   const manualCodeToggle = document.getElementById("manual-code-toggle")
@@ -2367,4 +2330,33 @@ async function updateSameGamePlayersCount() {
     console.error("Erreur lors du comptage des joueurs :", error)
   }
 }
+
+document.addEventListener("DOMContentLoaded", function() {
+  const modal = document.getElementById("qr-code-modal");
+  const btn = document.getElementById("qr-code-button");
+  const closeBtn = document.querySelector(".close");
+  const qrImage = document.getElementById("qr-code-img");
+  const codeText = document.getElementById("code-to-leave");
+  
+  btn.addEventListener("click", function() {
+      const gameCodeToShare = gameState.gameCode || "";
+      const shareUrl = `https://new1234y.github.io/chat/?code=${gameCodeToShare}`;
+      const encodedUrl = encodeURIComponent(shareUrl);
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodedUrl}&size=200x200`;
+      
+      modal.style.display = "flex";
+      qrImage.src = qrUrl;
+      codeText.textContent = `Code de partie: ${gameCodeToShare}`;
+  });
+
+  closeBtn.addEventListener("click", function() {
+      modal.style.display = "none";
+  });
+
+  window.addEventListener("click", function(event) {
+      if (event.target === modal) {
+          modal.style.display = "none";
+      }
+  });
+});
 
