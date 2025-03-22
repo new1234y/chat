@@ -147,6 +147,17 @@
           <label for="proximity-radius">Rayon de proximité (mètres)</label>
           <input type="number" id="proximity-radius" min="50" max="500" value="200" />
         </div>
+        <div class="form-group">
+          <label for="game-latitude">Latitude</label>
+          <input type="number" id="game-latitude" step="0.000001" min="-90" max="90" placeholder="Latitude (ex: 48.8566)" />
+        </div>
+        <div class="form-group">
+          <label for="game-longitude">Longitude</label>
+          <input type="number" id="game-longitude" step="0.000001" min="-180" max="180" placeholder="Longitude (ex: 2.3522)" />
+        </div>
+        <div class="form-group">
+          <button type="button" id="use-current-location" class="btn btn-primary">Utiliser ma position</button>
+        </div>
         <button type="submit" class="btn btn-primary">Créer et rejoindre</button>
       </form>
     </div>
@@ -222,27 +233,13 @@
 </div>
 
 <button id="qr-code-button" class="qr-code-btn">
-<svg class="qrimg" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-<title>
-ionicons-v5-k
-</title>
-<rect x="336"y="336"width="80"height="80"rx="8"ry="8"/>
-<rect x="272"y="272"width="64"height="64"rx="8"ry="8"/>
-<rect x="416" y="416" width="64" height="64" rx="8" ry="8"/>
-<rect x="432" y="272" width="48" height="48" rx="8" ry="8"/>
-<rect x="272" y="432 "width="48" height=" 48"rx="8" ry="8"/>
-<path d="M448,32H304a32,32,0,0,0-32,32V208a32,32,0,0,0,32,32H448a32,32,0,0,0,32-32V64A32,32,0,0,0,448,32ZM416,168a8,8,0,0,1-8,8H344a8,8,0,0,1-8-8V104a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/>
-<path d="M208,32H64A32,32,0,0,0,32,64V208a32,32,0,0,0,32,32H208a32,32,0,0,0,32-32V64A32,32,0,0,0,208,32ZM176,168a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V104a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/>
-<path d="M208,272H64a32,32,0,0,0-32,32V448a32,32,0,0,0,32,32H208a32,32,0,0,0,32-32V304A32,32,0,0,0,208,272ZM176,408a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V344a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/>
-</svg>
-</button>
+  <svg class="qrimg" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><title>ionicons-v5-k</title><rect x="336" y="336" width="80" height="80" rx="8" ry="8"/><rect x="272" y="272" width="64" height="64" rx="8" ry="8"/><rect x="416" y="416" width="64" height="64" rx="8" ry="8"/><rect x="432" y="272" width="48" height="48" rx="8" ry="8"/><rect x="272" y="432" width="48" height="48" rx="8" ry="8"/><path d="M448,32H304a32,32,0,0,0-32,32V208a32,32,0,0,0,32,32H448a32,32,0,0,0,32-32V64A32,32,0,0,0,448,32ZM416,168a8,8,0,0,1-8,8H344a8,8,0,0,1-8-8V104a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/><path d="M208,32H64A32,32,0,0,0,32,64V208a32,32,0,0,0,32,32H208a32,32,0,0,0,32-32V64A32,32,0,0,0,208,32ZM176,168a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V104a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/><path d="M208,272H64a32,32,0,0,0-32,32V448a32,32,0,0,0,32,32H208a32,32,0,0,0,32-32V304A32,32,0,0,0,208,272ZM176,408a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V344a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/></svg></button>
 
 <div id="qr-code-modal" class="modal">
   <div class="modal-content">
       <span class="close">&times;</span>
       <h2>Scannez le QR Code</h2>
-      <img id="qr-code-img" src="image du qrcode" alt="">
-      <p id="code-to-leave">Code de partie:</p>
+      <div id="qr-code"></div>
   </div>
 </div>
 

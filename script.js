@@ -95,6 +95,7 @@ const gameState = {
   darkMode: true, // Default to dark mode
   gameCode: null, // Code de la partie actuelle
   gameStatus: "Pending", // Status par défaut: Pending ou Started
+  gameCenterPosition: null, // Position centrale de la partie actuelle
 }
 
 // DOM Elements
@@ -187,7 +188,7 @@ function initGame() {
   // Add tile layer (map style) - dark by default
   updateMapTheme(gameState.darkMode)
 
-  // Add global boundary circle
+  // Add global boundary circle - will be updated with specific game settings later
   gameState.globalBoundary = L.circle(config.defaultCenter, {
     radius: config.globalBoundaryRadius,
     color: "#6c5ce7",
@@ -320,10 +321,34 @@ function onGameCodeChange() {
 
 // Ajouter cette fonction pour extraire les paramètres de l'URL
 function getUrlParameter(name) {
-  name = name.replace(/\[/, "\\[").replace(/]/, "\\]");
+  name = name.replace(/\[/, "\\[").replace(/]/, "\\]")
   const regex = new RegExp("[\\?&]" + name + "=([^&#]*)")
   const results = regex.exec(location.search)
   return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "))
+}
+
+// Add a function to get current location for the form
+function useCurrentLocation() {
+  if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        document.getElementById("game-latitude").value = position.coords.latitude
+        document.getElementById("game-longitude").value = position.coords.longitude
+        showNotification("Position actuelle récupérée avec succès", "success")
+      },
+      (error) => {
+        console.error("Erreur de géolocalisation:", error)
+        showNotification("Impossible d'obtenir votre position actuelle", "error")
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0,
+      },
+    )
+  } else {
+    showNotification("La géolocalisation n'est pas prise en charge par votre navigateur", "error")
+  }
 }
 
 // Set up event listeners
@@ -374,6 +399,9 @@ function setupEventListeners() {
     if (bounds.length > 0) {
       // Ajuste le zoom et le centrage pour afficher tous les joueurs avec une marge de 50 pixels
       gameState.map.fitBounds(bounds, { padding: [50, 50] })
+    } else if (gameState.gameCenterPosition) {
+      // Si aucune position de joueur n'est disponible, centrer sur la position du jeu
+      gameState.map.setView([gameState.gameCenterPosition.lat, gameState.gameCenterPosition.lng], config.defaultZoom)
     } else {
       // Si aucune position n'est disponible, on centre sur la position par défaut
       gameState.map.setView(config.defaultCenter, config.defaultZoom)
@@ -420,6 +448,12 @@ function setupEventListeners() {
   const startGameButton = document.getElementById("start-game-button")
   if (startGameButton) {
     startGameButton.addEventListener("click", startGame)
+  }
+
+  // Add event listener for the use current location button
+  const useLocationBtn = document.getElementById("use-current-location")
+  if (useLocationBtn) {
+    useLocationBtn.addEventListener("click", useCurrentLocation)
   }
 }
 
@@ -495,14 +529,16 @@ async function handleCreateGame(e) {
 
     // Créer la nouvelle partie avec les paramètres personnalisés
     const now = new Date().toISOString()
+    const mapCenterLat = Number.parseFloat(document.getElementById("game-latitude").value) || config.defaultCenter[0]
+    const mapCenterLng = Number.parseFloat(document.getElementById("game-longitude").value) || config.defaultCenter[1]
     const { error: createError } = await supabase.from("game_settings").insert([
       {
         code: gameCode,
         date: now,
         status: "Pending",
         duration: duration,
-        map_center_lat: config.defaultCenter[0],
-        map_center_lng: config.defaultCenter[1],
+        map_center_lat: mapCenterLat,
+        map_center_lng: mapCenterLng,
         map_zoom_level: config.defaultZoom,
         player_proximity_radius: proximityRadius,
         global_boundary_radius: boundaryRadius,
@@ -526,6 +562,15 @@ async function handleCreateGame(e) {
     // Définir le statut de jeu
     gameState.gameStatus = "Pending"
     gameState.gameCode = gameCode
+
+    // Stocker la position centrale de cette partie
+    gameState.gameCenterPosition = {
+      lat: mapCenterLat,
+      lng: mapCenterLng,
+    }
+
+    // Mettre à jour le cercle global avec la position spécifique à cette partie
+    updateGlobalBoundary(mapCenterLat, mapCenterLng, boundaryRadius)
 
     showNotification(`Nouvelle partie créée avec le code ${gameCode}`, "success")
 
@@ -560,8 +605,8 @@ async function handleCreateGame(e) {
           console.warn("Geolocation error:", error)
           // Use default position in case of error
           const defaultPosition = {
-            lat: config.defaultCenter[0],
-            lng: config.defaultCenter[1],
+            lat: mapCenterLat,
+            lng: mapCenterLng,
           }
 
           // Initialize playerCirclePosition with the default position
@@ -594,6 +639,29 @@ async function handleCreateGame(e) {
     showNotification("Une erreur s'est produite. Veuillez réessayer.", "error")
     hideLoading()
   }
+}
+
+// Fonction pour mettre à jour le cercle global avec les coordonnées spécifiques à une partie
+function updateGlobalBoundary(lat, lng, radius) {
+  if (!gameState.map) return
+
+  // Si le cercle existe déjà, mettre à jour sa position et son rayon
+  if (gameState.globalBoundary) {
+    gameState.globalBoundary.setLatLng([lat, lng])
+    gameState.globalBoundary.setRadius(radius)
+  } else {
+    // Sinon, créer un nouveau cercle
+    gameState.globalBoundary = L.circle([lat, lng], {
+      radius: radius,
+      color: "#6c5ce7",
+      fillColor: "#6c5ce7",
+      fillOpacity: 0.1,
+      weight: 2,
+      dashArray: "5, 10",
+    }).addTo(gameState.map)
+  }
+
+  console.log(`Cercle global mis à jour pour la partie: [${lat}, ${lng}], rayon: ${radius}m`)
 }
 
 // Handle join game form submission
@@ -672,9 +740,25 @@ async function handleJoinGame(e) {
     // Charger les paramètres de la partie
     const gameSettings = await loadGameSettingsByCode(gameCode)
     if (gameSettings) {
+      // Mettre à jour la configuration avec les paramètres spécifiques à cette partie
       config.globalBoundaryRadius = gameSettings.global_boundary_radius
       config.playerProximityRadius = gameSettings.player_proximity_radius
       gameDuration = gameSettings.duration
+
+      // Stocker la position centrale de cette partie
+      gameState.gameCenterPosition = {
+        lat: gameSettings.map_center_lat,
+        lng: gameSettings.map_center_lng,
+      }
+
+      // Mettre à jour le cercle global avec la position spécifique à cette partie
+      updateGlobalBoundary(
+        gameSettings.map_center_lat,
+        gameSettings.map_center_lng,
+        gameSettings.global_boundary_radius,
+      )
+    } else {
+      console.warn("Using default settings.")
     }
 
     // Déterminer le type de joueur de façon aléatoire ou selon les règles
@@ -735,10 +819,16 @@ async function handleJoinGame(e) {
       // Use a default position in case of geolocation error
       const useDefaultPosition = () => {
         console.log("Using default position")
-        const defaultPosition = {
-          lat: config.defaultCenter[0],
-          lng: config.defaultCenter[1],
-        }
+        // Utiliser la position centrale de la partie comme position par défaut
+        const defaultPosition = gameState.gameCenterPosition
+          ? {
+              lat: gameState.gameCenterPosition.lat,
+              lng: gameState.gameCenterPosition.lng,
+            }
+          : {
+              lat: config.defaultCenter[0],
+              lng: config.defaultCenter[1],
+            }
 
         // Initialize playerCirclePosition with the default position
         gameState.playerCirclePosition = {
@@ -809,18 +899,44 @@ async function joinGame(name, type, position, gameCode) {
   if (!position || isNaN(position.lat) || isNaN(position.lng)) {
     console.error("Invalid position:", position)
     showNotification("Position invalide. Utilisation de la position par défaut.", "warning")
-    position = {
-      lat: config.defaultCenter[0],
-      lng: config.defaultCenter[1],
-    }
+
+    // Utiliser la position centrale de la partie comme position par défaut
+    position = gameState.gameCenterPosition
+      ? {
+          lat: gameState.gameCenterPosition.lat,
+          lng: gameState.gameCenterPosition.lng,
+        }
+      : {
+          lat: config.defaultCenter[0],
+          lng: config.defaultCenter[1],
+        }
   }
 
   // Generate a unique ID
   const playerId = Date.now().toString()
 
+  // Charger les paramètres spécifiques à cette partie si ce n'est pas déjà fait
+  if (!gameState.gameCenterPosition) {
+    const gameSettings = await loadGameSettingsByCode(gameCode)
+    if (gameSettings) {
+      gameState.gameCenterPosition = {
+        lat: gameSettings.map_center_lat,
+        lng: gameSettings.map_center_lng,
+      }
+
+      // Mettre à jour le cercle global avec la position spécifique à cette partie
+      updateGlobalBoundary(
+        gameSettings.map_center_lat,
+        gameSettings.map_center_lng,
+        gameSettings.global_boundary_radius,
+      )
+    }
+  }
+
   // Check if the initial position is inside the global boundary
+  const centerPosition = gameState.gameCenterPosition || { lat: config.defaultCenter[0], lng: config.defaultCenter[1] }
   const isInZone = gameState.map
-    ? gameState.map.distance([position.lat, position.lng], [config.defaultCenter[0], config.defaultCenter[1]]) <=
+    ? gameState.map.distance([position.lat, position.lng], [centerPosition.lat, centerPosition.lng]) <=
       config.globalBoundaryRadius
     : true
 
@@ -1230,10 +1346,16 @@ function updateCurrentPlayerPosition(position) {
 
   gameState.player.position = position
 
+  // Vérifier si nous avons une position centrale pour cette partie
+  const centerPosition = gameState.gameCenterPosition || {
+    lat: config.defaultCenter[0],
+    lng: config.defaultCenter[1],
+  }
+
   // Check if the player is outside the global boundary
   const distanceToCenter = gameState.map.distance(
     [position.lat, position.lng],
-    [config.defaultCenter[0], config.defaultCenter[1]],
+    [centerPosition.lat, centerPosition.lng],
   )
   const isOutsideGlobalBoundary = distanceToCenter > config.globalBoundaryRadius
 
@@ -1457,6 +1579,26 @@ function handleGameSettingsUpdate(payload) {
         // Notification sans alert pour éviter le rechargement
         showNotification("La partie a commencé !", "success")
       }
+    }
+
+    // Vérifier si les coordonnées du cercle global ont changé
+    if (
+      gameState.gameCenterPosition &&
+      (gameState.gameCenterPosition.lat !== newRecord.map_center_lat ||
+        gameState.gameCenterPosition.lng !== newRecord.map_center_lng ||
+        config.globalBoundaryRadius !== newRecord.global_boundary_radius)
+    ) {
+      // Mettre à jour la position centrale et le rayon
+      gameState.gameCenterPosition = {
+        lat: newRecord.map_center_lat,
+        lng: newRecord.map_center_lng,
+      }
+      config.globalBoundaryRadius = newRecord.global_boundary_radius
+
+      // Mettre à jour le cercle global
+      updateGlobalBoundary(newRecord.map_center_lat, newRecord.map_center_lng, newRecord.global_boundary_radius)
+
+      console.log("Cercle global mis à jour suite à une modification des paramètres de la partie")
     }
   }
 }
@@ -1986,7 +2128,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (settings) {
       config.defaultCenter = [settings.map_center_lat, settings.map_center_lng]
       config.defaultZoom = settings.map_zoom_level
-      config.playerProximityRadius = settings.player_proximity_radius
+      config.playerProximityRadius = settings.player_proximityRadius
       config.globalBoundaryRadius = settings.global_boundary_radius
       config.updateInterval = 20000 // Force to 20 seconds as requested
       console.log("Game settings loaded from DB:", config)
@@ -2004,64 +2146,70 @@ async function refreshMapAndLists() {
   console.log("Refreshing map and lists...")
 
   try {
-    // Reload settings from DB
-    const settings = await loadGameSettings()
-    if (settings) {
-      // Save old radius to detect changes
-      const oldPlayerProximityRadius = config.playerProximityRadius
-      const oldGlobalBoundaryRadius = config.globalBoundaryRadius
+    // Si nous avons un code de partie, charger les paramètres spécifiques à cette partie
+    if (gameState.gameCode) {
+      const gameSettings = await loadGameSettingsByCode(gameState.gameCode)
+      if (gameSettings) {
+        // Save old radius to detect changes
+        const oldPlayerProximityRadius = config.playerProximityRadius
+        const oldGlobalBoundaryRadius = config.globalBoundaryRadius
 
-      // Update configuration
-      config.defaultCenter = [settings.map_center_lat, settings.map_center_lng]
-      config.globalBoundaryRadius = settings.global_boundary_radius
-      config.defaultZoom = settings.map_zoom_level
-      config.playerProximityRadius = settings.player_proximity_radius
-      config.updateInterval = 20000 // Force to 20 seconds as requested
+        // Update configuration
+        config.playerProximityRadius = gameSettings.player_proximity_radius
+        config.updateInterval = 20000 // Force to 20 seconds as requested
 
-      console.log("Game settings reloaded:", config)
+        // Mettre à jour la position centrale de cette partie
+        const newCenterLat = gameSettings.map_center_lat
+        const newCenterLng = gameSettings.map_center_lng
+        const newRadius = gameSettings.global_boundary_radius
 
-      // If player proximity radius changed and player has a circle, update the radius
-      if (oldPlayerProximityRadius !== config.playerProximityRadius && gameState.playerCircle) {
-        gameState.playerCircle.setRadius(config.playerProximityRadius)
-        console.log("Player circle radius updated:", config.playerProximityRadius)
-      }
+        // Vérifier si la position centrale ou le rayon ont changé
+        const centerChanged =
+          !gameState.gameCenterPosition ||
+          gameState.gameCenterPosition.lat !== newCenterLat ||
+          gameState.gameCenterPosition.lng !== newCenterLng
 
-      // Update global boundary circle with new values
-      if (gameState.map) {
-        if (gameState.globalBoundary) {
-          gameState.globalBoundary.setLatLng(config.defaultCenter)
+        const radiusChanged = oldGlobalBoundaryRadius !== newRadius
 
-          // Only update radius if it changed to avoid visual glitches
-          if (oldGlobalBoundaryRadius !== config.globalBoundaryRadius) {
-            gameState.globalBoundary.setRadius(config.globalBoundaryRadius)
-
-            // If player exists, check if their inZone status needs updating due to boundary change
-            if (gameState.player && gameState.player.position) {
-              const distanceToCenter = gameState.map.distance(
-                [gameState.player.position.lat, gameState.player.position.lng],
-                [config.defaultCenter[0], config.defaultCenter[1]],
-              )
-              const isOutside = distanceToCenter > config.globalBoundaryRadius
-
-              // If inZone status would change due to boundary update, update the player position
-              if (isOutside !== gameState.isOutsideBoundary) {
-                updateCurrentPlayerPosition(gameState.player.position)
-              }
-            }
+        if (centerChanged || radiusChanged) {
+          // Mettre à jour la position centrale
+          gameState.gameCenterPosition = {
+            lat: newCenterLat,
+            lng: newCenterLng,
           }
-        } else {
-          gameState.globalBoundary = L.circle(config.defaultCenter, {
-            radius: config.globalBoundaryRadius,
-            color: "#6c5ce7",
-            fillColor: "#6c5ce7",
-            fillOpacity: 0.1,
-            weight: 2,
-            dashArray: "5, 10",
-          }).addTo(gameState.map)
+
+          config.globalBoundaryRadius = newRadius
+
+          // Mettre à jour le cercle global
+          updateGlobalBoundary(newCenterLat, newCenterLng, newRadius)
+
+          console.log(`Cercle global mis à jour: [${newCenterLat}, ${newCenterLng}], rayon: ${newRadius}m`)
         }
+
+        console.log("Game settings reloaded:", config)
+
+        // If player proximity radius changed and player has a circle, update the radius
+        if (oldPlayerProximityRadius !== config.playerProximityRadius && gameState.playerCircle) {
+          gameState.playerCircle.setRadius(config.playerProximityRadius)
+          console.log("Player circle radius updated:", config.playerProximityRadius)
+        }
+
+        // If player exists, check if their inZone status needs updating due to boundary change
+        if (gameState.player && gameState.player.position && (centerChanged || radiusChanged)) {
+          const distanceToCenter = gameState.map.distance(
+            [gameState.player.position.lat, gameState.player.position.lng],
+            [gameState.gameCenterPosition.lat, gameState.gameCenterPosition.lng],
+          )
+          const isOutside = distanceToCenter > config.globalBoundaryRadius
+
+          // If inZone status would change due to boundary update, update the player position
+          if (isOutside !== gameState.isOutsideBoundary) {
+            updateCurrentPlayerPosition(gameState.player.position)
+          }
+        }
+      } else {
+        console.warn("Using default settings.")
       }
-    } else {
-      console.warn("Using default settings.")
     }
 
     // Fetch latest player data based on game status
@@ -2331,32 +2479,32 @@ async function updateSameGamePlayersCount() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", function() {
-  const modal = document.getElementById("qr-code-modal");
-  const btn = document.getElementById("qr-code-button");
-  const closeBtn = document.querySelector(".close");
-  const qrImage = document.getElementById("qr-code-img");
-  const codeText = document.getElementById("code-to-leave");
-  
-  btn.addEventListener("click", function() {
-      const gameCodeToShare = gameState.gameCode || "";
-      const shareUrl = `https://new1234y.github.io/chat/?code=${gameCodeToShare}`;
-      const encodedUrl = encodeURIComponent(shareUrl);
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodedUrl}&size=200x200`;
-      
-      modal.style.display = "flex";
-      qrImage.src = qrUrl;
-      codeText.textContent = `Code de partie: ${gameCodeToShare}`;
-  });
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("qr-code-modal")
+  const btn = document.getElementById("qr-code-button")
+  const closeBtn = document.querySelector(".close")
 
-  closeBtn.addEventListener("click", function() {
-      modal.style.display = "none";
-  });
+  btn.addEventListener("click", () => {
+    modal.style.display = "block"
 
-  window.addEventListener("click", function(event) {
-      if (event.target === modal) {
-          modal.style.display = "none";
-      }
-  });
-});
+    // Générer le QR Code seulement si ce n'est déjà fait
+    if (!document.getElementById("qr-code").hasChildNodes()) {
+      new QRCode(document.getElementById("qr-code"), {
+        text: "https://new1234y.github.io/chat/",
+        width: 150,
+        height: 150,
+      })
+    }
+  })
+
+  closeBtn.addEventListener("click", () => {
+    modal.style.display = "none"
+  })
+
+  window.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      modal.style.display = "none"
+    }
+  })
+})
 
