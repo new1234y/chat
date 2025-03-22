@@ -137,11 +137,12 @@ const elements = {
   createButton: document.querySelector('[data-tab="create-tab"]'),
   createTab: document.getElementById("create-tab"),
   joinTab: document.getElementById("join-tab"),
+  scoreModule: document.getElementById("score-module")
 }
 
 const sunIcon = `<svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="#ffd43b"><circle r="5" cy="12" cx="12"></circle><path id="sun-icon" d="m21 13h-1a1 1 0 0 1 0-2h1a1 1 0 0 1 0 2zm-17 0h-1a1 1 0 0 1 0-2h1a1 1 0 0 1 0 2zm13.66-5.66a1 1 0 0 1 -.66-.29 1 1 0 0 1 0-1.41l.71-.71a1 1 0 1 1 1.41 1.41l-.71.71a1 1 0 0 1 -.75.29zm-12.02 12.02a1 1 0 0 1 -.71-.29 1 1 0 0 1 0-1.41l.71-.66a1 1 0 0 1 1.41 1.41l-.71.71a1 1 0 0 1 -.7.24zm6.36-14.36a1 1 0 0 1 -1-1v-1a1 1 0 0 1 2 0v1a1 1 0 0 1 -1 1zm0 17a1 1 0 0 1 -1-1v-1a1 1 0 0 1 2 0v1a1 1 0 0 1 -1 1zm-5.66-14.66a1 1 0 0 1 -.7-.29l-.71-.71a1 1 0 0 1 1.41-1.41l.71.71a1 1 0 0 1 0 1.41 1 1 0 0 1 -.71.29zm12.02 12.02a1 1 0 0 1 -.7-.29l-.66-.71a1 1 0 0 1 1.36-1.36l.71.71a1 1 0 0 1 0 1.41 1 1 0 0 1 -.71.24z"></path></g></svg>`
 
-const moonIcon = `<svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="m223.5 32c-123.5 0-223.5 100.3-223.5 224s100   viewBox="0 0 384 512"><path d="m223.5 32c-123.5 0-223.5 100.3-223.5 224s100 224 223.5 224c60.6 0 115.5-24.2 155.8-63.4 5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-19.8 2.6-30.1 2.6-96.9 0-175.5-78.8-175.5-176 0-65.8 36-123.1 89.3-153.3 6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z"></path></svg>`
+const moonIcon = `<svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="m223.5 32c-123.5 0-223.5 100.3-223.5 224s100 224 223.5 224c60.6 0 115.5-24.2 155.8-63.4 5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-19.8 2.6-30.1 2.6-96.9 0-175.5-78.8-175.5-176 0-65.8 36-123.1 89.3-153.3 6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z"></path></svg> `
 
 // Ajoutez ces variables globales
 let scoreInterval
@@ -1213,6 +1214,7 @@ function updateGameStatusDisplay() {
   if (gameState.gameStatus === "Started") {
     // Passer à l'onglet carte
     switchTab("map")
+    elements.scoreModule.style.display = "flex"
 
     // Rafraîchir la carte pour n'afficher que les joueurs de la même partie
     updateMap()
@@ -2375,6 +2377,15 @@ async function quitGame() {
   }
 }
 
+function generateCode() {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "";
+  for (let i = 0; i < 8; i++) {
+      code += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  document.getElementById("new-game-code").value = code;
+}
+
 // Calculate and update score
 async function updateScore() {
   if (!gameState.player || gameState.player.type !== "player") return
@@ -2479,32 +2490,32 @@ async function updateSameGamePlayersCount() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const modal = document.getElementById("qr-code-modal")
-  const btn = document.getElementById("qr-code-button")
-  const closeBtn = document.querySelector(".close")
+document.addEventListener("DOMContentLoaded", function() {
+  const modal = document.getElementById("qr-code-modal");
+  const btn = document.getElementById("qr-code-button");
+  const closeBtn = document.querySelector(".close");
+  const qrImage = document.getElementById("qr-code-img");
+  const codeText = document.getElementById("code-to-leave");
+  
+  btn.addEventListener("click", function() {
+      const gameCodeToShare = gameState.gameCode || "";
+      const shareUrl = `https://new1234y.github.io/chat/?code=${gameCodeToShare}`;
+      const encodedUrl = encodeURIComponent(shareUrl);
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodedUrl}&size=200x200`;
+      
+      modal.style.display = "flex";
+      modal.style.backdropFilter = "blur(5px)"
+      qrImage.src = qrUrl;
+      codeText.textContent = `Code de partie: ${gameCodeToShare}`;
+  });
 
-  btn.addEventListener("click", () => {
-    modal.style.display = "block"
+  closeBtn.addEventListener("click", function() {
+      modal.style.display = "none";
+  });
 
-    // Générer le QR Code seulement si ce n'est déjà fait
-    if (!document.getElementById("qr-code").hasChildNodes()) {
-      new QRCode(document.getElementById("qr-code"), {
-        text: "https://new1234y.github.io/chat/",
-        width: 150,
-        height: 150,
-      })
-    }
-  })
-
-  closeBtn.addEventListener("click", () => {
-    modal.style.display = "none"
-  })
-
-  window.addEventListener("click", (event) => {
-    if (event.target === modal) {
-      modal.style.display = "none"
-    }
-  })
-})
-
+  window.addEventListener("click", function(event) {
+      if (event.target === modal) {
+          modal.style.display = "none";
+      }
+  });
+});

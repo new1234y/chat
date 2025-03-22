@@ -17,6 +17,7 @@
 ></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -133,7 +134,10 @@
         </div>
         <div class="form-group">
           <label for="new-game-code">Code de partie</label>
+        <div class="code-random">
           <input type="text" id="new-game-code" required minlength="3" maxlength="8" placeholder="Créez un code unique" />
+          <button id="btn-random"  type="button" onclick="generateCode()"><i class="fa-solid fa-shuffle"></i></button>
+        </div>
         </div>
         <div class="form-group">
           <label for="game-duration">Durée (minutes)</label>
@@ -149,11 +153,11 @@
         </div>
         <div class="form-group">
           <label for="game-latitude">Latitude</label>
-          <input type="number" id="game-latitude" step="0.000001" min="-90" max="90" placeholder="Latitude (ex: 48.8566)" />
+          <input type="number" id="game-latitude" step="0.00000000000001" min="-90" max="90" placeholder="Latitude (ex: 48.8566)" />
         </div>
         <div class="form-group">
           <label for="game-longitude">Longitude</label>
-          <input type="number" id="game-longitude" step="0.000001" min="-180" max="180" placeholder="Longitude (ex: 2.3522)" />
+          <input type="number" id="game-longitude" step="0.00000000000001" min="-180" max="180" placeholder="Longitude (ex: 2.3522)" />
         </div>
         <div class="form-group">
           <button type="button" id="use-current-location" class="btn btn-primary">Utiliser ma position</button>
@@ -235,13 +239,14 @@
 <button id="qr-code-button" class="qr-code-btn">
   <svg class="qrimg" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><title>ionicons-v5-k</title><rect x="336" y="336" width="80" height="80" rx="8" ry="8"/><rect x="272" y="272" width="64" height="64" rx="8" ry="8"/><rect x="416" y="416" width="64" height="64" rx="8" ry="8"/><rect x="432" y="272" width="48" height="48" rx="8" ry="8"/><rect x="272" y="432" width="48" height="48" rx="8" ry="8"/><path d="M448,32H304a32,32,0,0,0-32,32V208a32,32,0,0,0,32,32H448a32,32,0,0,0,32-32V64A32,32,0,0,0,448,32ZM416,168a8,8,0,0,1-8,8H344a8,8,0,0,1-8-8V104a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/><path d="M208,32H64A32,32,0,0,0,32,64V208a32,32,0,0,0,32,32H208a32,32,0,0,0,32-32V64A32,32,0,0,0,208,32ZM176,168a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V104a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/><path d="M208,272H64a32,32,0,0,0-32,32V448a32,32,0,0,0,32,32H208a32,32,0,0,0,32-32V304A32,32,0,0,0,208,272ZM176,408a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V344a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/></svg></button>
 
-<div id="qr-code-modal" class="modal">
-  <div class="modal-content">
-      <span class="close">&times;</span>
-      <h2>Scannez le QR Code</h2>
-      <div id="qr-code"></div>
+  <div id="qr-code-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Scannez le QR Code</h2>
+        <img id="qr-code-img" src="image du qrcode" alt="">
+        <p id="code-to-leave">Code de partie:</p>
+    </div>
   </div>
-</div>
 
 <!-- Bottom navigation bar -->
 <nav id="bottom-navbar">
