@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Cat Chase 2025</title>
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""
+/>
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""
+></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<!-- Ajouter un nouvel élément pour l'indicateur de type de joueur juste après la balise <body>: -->
+<div id="player-type-indicator">
+  <div class="player-type-content">
+    <div id="player-type-icon"></div>
+    <span id="player-type-text">Joueur</span>
+  </div>
+</div>
+<!-- Overlay de chargement -->
+<div id="loading-overlay">
+<!-- From Uiverse.io by Nawsome --> 
+<svg class="pl" viewBox="0 0 160 160" width="160px" height="160px" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#000"></stop>
+    <stop offset="100%" stop-color="#fff"></stop>
+  </linearGradient>
+  <mask id="mask1">
+    <rect x="0" y="0" width="160" height="160" fill="url(#grad)"></rect>
+  </mask>
+  <mask id="mask2">
+    <rect x="28" y="28" width="104" height="104" fill="url(#grad)"></rect>
+  </mask>
+</defs>
+
+<g>
+  <g class="pl__ring-rotate">
+    <circle class="pl__ring-stroke" cx="80" cy="80" r="72" fill="none" stroke="hsl(223,90%,55%)" stroke-width="16" stroke-dasharray="452.39 452.39" stroke-dashoffset="452" stroke-linecap="round" transform="rotate(-45,80,80)"></circle>
+  </g>
+</g>
+<g mask="url(#mask1)">
+  <g class="pl__ring-rotate">
+    <circle class="pl__ring-stroke" cx="80" cy="80" r="72" fill="none" stroke="hsl(193,90%,55%)" stroke-width="16" stroke-dasharray="452.39 452.39" stroke-dashoffset="452" stroke-linecap="round" transform="rotate(-45,80,80)"></circle>
+  </g>
+</g>
+
+<g>
+  <g stroke-width="4" stroke-dasharray="12 12" stroke-dashoffset="12" stroke-linecap="round" transform="translate(80,80)">
+    <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(-135,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(-90,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(-45,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(0,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(45,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(90,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(135,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,10%,90%)" points="0,2 0,14" transform="rotate(180,0,0) translate(0,40)"></polyline>
+  </g>
+</g>
+<g mask="url(#mask1)">
+  <g stroke-width="4" stroke-dasharray="12 12" stroke-dashoffset="12" stroke-linecap="round" transform="translate(80,80)">
+    <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(-135,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(-90,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(-45,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(0,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(45,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(90,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(135,0,0) translate(0,40)"></polyline>
+    <polyline class="pl__tick" stroke="hsl(223,90%,80%)" points="0,2 0,14" transform="rotate(180,0,0) translate(0,40)"></polyline>
+  </g>
+</g>
+
+<g>
+  <g transform="translate(64,28)">
+    <g class="pl__arrows" transform="rotate(45,16,52)">
+      <path fill="hsl(3,90%,55%)" d="M17.998,1.506l13.892,43.594c.455,1.426-.56,2.899-1.998,2.899H2.108c-1.437,0-2.452-1.473-1.998-2.899L14.002,1.506c.64-2.008,3.356-2.008,3.996,0Z"></path>
+      <path fill="hsl(223,10%,90%)" d="M14.009,102.499L.109,58.889c-.453-1.421,.559-2.889,1.991-2.889H29.899c1.433,0,2.444,1.468,1.991,2.889l-13.899,43.61c-.638,2.001-3.345,2.001-3.983,0Z"></path>
+    </g>
+  </g>
+</g>
+<g mask="url(#mask2)">
+  <g transform="translate(64,28)">
+    <g class="pl__arrows" transform="rotate(45,16,52)">
+      <path fill="hsl(333,90%,55%)" d="M17.998,1.506l13.892,43.594c.455,1.426-.56,2.899-1.998,2.899H2.108c-1.437,0-2.452-1.473-1.998-2.899L14.002,1.506c.64-2.008,3.356-2.008,3.996,0Z"></path>
+      <path fill="hsl(223,90%,80%)" d="M14.009,102.499L.109,58.889c-.453-1.421,.559-2.889,1.991-2.889H29.899c1.433,0,2.444,1.468,1.991,2.889l-13.899,43.61c-.638,2.001-3.345,2.001-3.983,0Z"></path>
+    </g>
+  </g>
+</g>
+</svg>
+  <p>Chargement...</p>
+</div>
+
+<!-- Modal de login avec onglets -->
+<div id="login-modal">
+  <div class="login-container">
+    <h2>Cat Chase 2025</h2>
+    
+    <!-- Onglets -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="join-tab">Rejoindre</button>
+      <button class="tab-btn" data-tab="create-tab">Créer</button>
+    </div>
+    
+    <!-- Contenu de l'onglet Rejoindre -->
+    <div id="join-tab" class="tab-content active">
+      <form id="join-form">
+        <div class="form-group">
+          <label for="player-name">Votre nom</label>
+          <input type="text" id="player-name" required minlength="2" placeholder="Entrez votre nom" />
+        </div>
+        <!-- Champ de code de partie, caché par défaut si code dans URL -->
+        <div class="form-group" id="game-code-container" style="display: none;">
+          <label for="game-code">Code de partie</label>
+          <input type="text" id="game-code" required minlength="3" maxlength="8" placeholder="Entrez le code de partie" />
+        </div>
+        <!-- Texte cliquable pour afficher le champ de code -->
+        <div class="form-group" id="manual-code-toggle">
+          <p class="clickable-text">Entrer le code de partie manuellement</p>
+        </div>
+        <button type="submit" class="btn btn-primary">Rejoindre</button>
+      </form>
+    </div>
+    
+    <!-- Contenu de l'onglet Créer -->
+    <div id="create-tab" class="tab-content">
+      <form id="create-form">
+        <div class="form-group">
+          <label for="creator-name">Votre nom</label>
+          <input type="text" id="creator-name" required minlength="2" placeholder="Entrez votre nom" />
+        </div>
+        <div class="form-group">
+          <label for="new-game-code">Code de partie</label>
+        <div class="code-random">
+          <input type="text" id="new-game-code" required minlength="3" maxlength="8" placeholder="Créez un code unique" />
+          <button id="btn-random"  type="button" onclick="generateCode()"><i class="fa-solid fa-shuffle"></i></button>
+        </div>
+        </div>
+        <div class="form-group">
+          <label for="game-duration">Durée (minutes)</label>
+          <input type="number" id="game-duration" min="10" max="120" value="60" />
+        </div>
+        <div class="form-group">
+          <label for="boundary-radius">Rayon de la zone (mètres)</label>
+          <input type="number" id="boundary-radius" min="200" max="5000" value="1000" />
+        </div>
+        <div class="form-group">
+          <label for="proximity-radius">Rayon de proximité (mètres)</label>
+          <input type="number" id="proximity-radius" min="50" max="500" value="200" />
+        </div>
+        <div class="form-group">
+          <label for="game-latitude">Latitude</label>
+          <input type="number" id="game-latitude" step="0.00000000000001" min="-90" max="90" placeholder="Latitude (ex: 48.8566)" />
+        </div>
+        <div class="form-group">
+          <label for="game-longitude">Longitude</label>
+          <input type="number" id="game-longitude" step="0.00000000000001" min="-180" max="180" placeholder="Longitude (ex: 2.3522)" />
+        </div>
+        <div class="form-group">
+          <button type="button" id="use-current-location" class="btn btn-primary">Utiliser ma position</button>
+        </div>
+        <button type="submit" class="btn btn-primary">Créer et rejoindre</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Score module - remis en haut -->
+<div class="score-container" id="score-module">
+<div id="player-score">Score: 0</div>
+<!-- Add game status and time displays -->
+<div id="game-status-badge" class="badge status-badge status-pending">Pending</div>
+<div id="game-time">--:--</div>
+</div>
+
+<!-- Container for both pages -->
+<main id="main-container">
+<!-- Waiting Screen (Pending mode) -->
+<div id="waiting-screen" class="page">
+  <div class="waiting-container">
+    <h2>En attente de démarrage</h2>
+    <div class="loader-spinner"></div>
+    <div id="same-game-count" class="waiting-count">Joueurs dans cette partie: 0</div>
+    <p class="waiting-info">La partie commencera bientôt...</p>
+    
+    <!-- Bouton de démarrage (visible uniquement pour le créateur) -->
+    <button id="start-game-button" class="btn btn-primary" style="display: none; margin-top: 20px;">Lancer la partie</button>
+  </div>
+</div>
+
+<!-- Map Page (Started mode) -->
+<div id="map-page" class="page">
+  <div id="game-map"></div>
+</div>
+
+<!-- Players Page -->
+<div id="players-page" class="page">
+  <div class="lists-container">
+    <div class="list-section">
+      <div class="list-header">
+        <h3>Joueurs</h3>
+        <span id="player-count-badge" class="badge">Joueurs: 0</span>
+      </div>
+      <ul id="players" class="entity-list"></ul>
+    </div>
+    
+    <div class="list-section">
+      <div class="list-header">
+        <h3>Chats</h3>
+        <span id="cat-count-badge" class="badge">Chats: 0</span>
+      </div>
+      <ul id="cats" class="entity-list"></ul>
+    </div>
+  </div>
+  <div id="player-actions">
+    <div id="switch-to-cat-container" style="display: none">
+      <button id="switch-to-cat" class="btn btn-warning">Devenir un chat (-500 points)</button>
+    </div>
+    <button id="quit-game" class="btn btn-danger" style="display: none">Quitter la partie</button>
+    <button id="stop-game" class="btn btn-danger" style="display: none; margin-top: 10px;">Arrêter la partie</button>
+  </div>
+</div>
+</main>
+
+<!-- Map controls - déplacés en bas au-dessus de la navbar -->
+<div id="map-controls">
+  <button id="center-map" class="map-control-btn">Center Map</button>
+  <div class="status-container">
+    <div id="status-indicator"></div>
+    <span id="status-text">Connected</span>
+  </div>
+  <button id="theme-toggle-button" class="theme-toggle-btn">
+    <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="m223.5 32c-123.5 0-223.5 100.3-223.5 224s100 224 223.5 224c60.6 0 115.5-24.2 155.8-63.4 5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-19.8 2.6-30.1 2.6-96.9 0-175.5-78.8-175.5-176 0-65.8 36-123.1 89.3-153.3 6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z"></path></svg>    </button>
+</div>
+
+<button id="qr-code-button" class="qr-code-btn">
+  <svg class="qrimg" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><title>ionicons-v5-k</title><rect x="336" y="336" width="80" height="80" rx="8" ry="8"/><rect x="272" y="272" width="64" height="64" rx="8" ry="8"/><rect x="416" y="416" width="64" height="64" rx="8" ry="8"/><rect x="432" y="272" width="48" height="48" rx="8" ry="8"/><rect x="272" y="432" width="48" height="48" rx="8" ry="8"/><path d="M448,32H304a32,32,0,0,0-32,32V208a32,32,0,0,0,32,32H448a32,32,0,0,0,32-32V64A32,32,0,0,0,448,32ZM416,168a8,8,0,0,1-8,8H344a8,8,0,0,1-8-8V104a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/><path d="M208,32H64A32,32,0,0,0,32,64V208a32,32,0,0,0,32,32H208a32,32,0,0,0,32-32V64A32,32,0,0,0,208,32ZM176,168a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V104a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/><path d="M208,272H64a32,32,0,0,0-32,32V448a32,32,0,0,0,32,32H208a32,32,0,0,0,32-32V304A32,32,0,0,0,208,272ZM176,408a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V344a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/></svg></button>
+
+  <!-- Corriger le QR code modal pour s'assurer qu'il fonctionne correctement -->
+<div id="qr-code-modal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Scannez le QR Code</h2>
+    <div id="qr-code"></div>
+    <p id="code-to-leave">Code de partie:</p>
+  </div>
+</div>
+
+<!-- Bottom navigation bar -->
+<nav id="bottom-navbar">
+  <button id="map-tab" class="nav-tab active" data-tab="map-tab">
+    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+      <path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3V7z"></path>
+      <path d="M9 4v13"></path>
+      <path d="M15 7v13"></path>
+    </svg>
+    <span>Carte</span>
+  </button>
+  <button id="players-tab" class="nav-tab" data-tab="players-tab">
+    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+      <circle cx="9" cy="7" r="4"></circle>
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </svg>
+    <span>Joueurs</span>
+  </button>
+</nav>
+
+<script src="script.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+
+<!-- Ajouter un modal pour la confirmation d'arrêt de partie -->
+<div id="stop-game-modal" class="modal">
+  <div class="modal-content">
+    <span class="close-stop-modal">&times;</span>
+    <h2>Arrêter la partie</h2>
+    <p>Êtes-vous sûr de vouloir arrêter la partie pour tous les joueurs ?</p>
+    <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+      <button id="cancel-stop-game" class="btn">Annuler</button>
+      <button id="confirm-stop-game" class="btn btn-danger">Arrêter la partie</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ajouter un modal pour la notification de fin de partie -->
+<div id="game-ended-modal" class="modal">
+  <div class="modal-content">
+    <h2>Partie terminée</h2>
+    <p id="game-ended-message">La partie a été arrêtée par le créateur.</p>
+    <button id="acknowledge-game-ended" class="btn btn-primary" style="margin-top: 20px;">OK</button>
+  </div>
+</div>
+</body>
+</html>
+
