@@ -7,7 +7,7 @@ const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
 // Modifier la configuration pour inclure les paramètres des marqueurs
 const config = {
   defaultCenter: [48.8566, 2.3522],
-  defaultZoom: 15,
+  defaultZoom: 150,
   globalBoundaryRadius: 1000,
   playerProximityRadius: 200,
   updateInterval: 20000, // 20 secondes
@@ -102,8 +102,6 @@ const gameState = {
   gameCode: null, // Code de la partie actuelle
   gameStatus: "Pending", // Status par défaut: Pending ou Started
   gameCenterPosition: null, // Position centrale de la partie actuelle
-  markers: new Map(), // To store active markers
-  markerSubscription: null, // For real-time updates on markers
 }
 
 // DOM Elements
@@ -135,7 +133,6 @@ const elements = {
   gameDuration: document.getElementById("game-duration"), // Durée de la partie
   boundaryRadius: document.getElementById("boundary-radius"), // Rayon global
   proximityRadius: document.getElementById("proximity-radius"), // Rayon de proximité
-  gameStatusBadge: document.getElementById("game-status-badge"), // Élément pour afficher le statut
   tabButtons: document.querySelectorAll(".tab-btn"), // Boutons d'onglets
   tabContents: document.querySelectorAll(".tab-content"), // Contenus d'onglets
   qrButton: document.getElementById("qr-code-button"),
@@ -170,6 +167,7 @@ function generateCode() {
     code += characters.charAt(Math.floor(Math.random() * characters.length))
   }
   document.getElementById("new-game-code").value = code
+  document.getElementById("generated-code-display").textContent = code
 }
 
 // Ajouter la fonction updatePlayerTypeIndicator qui est appelée dans joinGame
@@ -199,89 +197,6 @@ function updatePlayerTypeIndicator() {
       </svg>
     `
     playerTypeText.textContent = "Chat"
-  }
-}
-
-// Ajouter la fonction updateScoreDisplay qui est appelée mais non définie
-function updateScoreDisplay() {
-  if (elements.playerScore && gameState.player) {
-    elements.playerScore.textContent = `Score: ${Math.round(gameState.player.score)}`
-    elements.playerScore.style.display = "block"
-  }
-}
-
-// Ajouter la fonction startScoreInterval qui est appelée mais non définie
-function startScoreInterval() {
-  // Update score at a reasonable interval
-  scoreInterval = setInterval(updateScore, config.updateInterval)
-}
-
-// Ajouter la fonction updateScore qui est appelée mais non définie
-async function updateScore() {
-  if (!gameState.player || gameState.player.type !== "player") return
-
-  const now = Date.now()
-  const dt = (now - gameState.lastScoreUpdate) / 1000 // Time difference in seconds
-  gameState.lastScoreUpdate = now
-
-  // Check if there are cats on the map
-  if (gameState.cats.size === 0) {
-    // No cats on the map, no points to add
-    console.log("No cats on the map, no points added")
-    return
-  }
-
-  let maxFactor = 0
-  let nearCat = false
-
-  // Check all cats to find the closest
-  gameState.cats.forEach((cat) => {
-    if (!cat.data || !cat.data.position || !gameState.player.position) return
-
-    // Si le jeu a commencé, ignorer les chats qui ne sont pas dans la même partie
-    if (gameState.gameStatus === "Started" && cat.data.gameCode !== gameState.gameCode) {
-      return
-    }
-
-    const distance = gameState.map.distance(
-      [gameState.player.position.lat, gameState.player.position.lng],
-      [cat.data.position.lat, cat.data.position.lng],
-    )
-
-    // Only if player is within 150 meters of a cat
-    if (distance <= 150) {
-      nearCat = true
-      // The closer the player, the higher the factor (1 when distance = 0, 0 when distance = 150)
-      const factor = (150 - distance) / 150
-      maxFactor = Math.max(maxFactor, factor)
-      console.log(`Near a cat at ${Math.round(distance)}m, factor: ${factor.toFixed(2)}`)
-    }
-  })
-
-  // Only add points if player is near a cat
-  if (nearCat) {
-    const baseScore = 10 // Points per second when right next to a cat
-    const scoreIncrement = baseScore * maxFactor * dt
-
-    gameState.player.score += scoreIncrement
-    console.log(`Points added: ${scoreIncrement.toFixed(2)}, factor: ${maxFactor.toFixed(2)}, time: ${dt.toFixed(2)}s`)
-
-    // Update score in database
-    const { error } = await supabase
-      .from("player")
-      .update({
-        score: Math.round(gameState.player.score),
-        gameCode: gameState.gameCode,
-      })
-      .eq("id", gameState.player.id)
-
-    if (error) {
-      console.error("Error updating score:", error)
-    } else {
-      updateScoreDisplay()
-    }
-  } else {
-    console.log("Not close enough to a cat to earn points")
   }
 }
 
@@ -443,25 +358,6 @@ async function updateSameGamePlayersCount() {
   }
 }
 
-// Déclarer les fonctions manquantes
-function updateGameStatusDisplay() {
-  // Implémentez la logique pour mettre à jour l'affichage du statut du jeu
-  // en utilisant gameState.gameStatus et elements.gameStatusBadge
-  if (gameState.gameStatus === "Pending") {
-    elements.gameStatusBadge.textContent = "En attente"
-    elements.gameStatusBadge.className = "status-badge pending"
-  } else if (gameState.gameStatus === "Started") {
-    elements.gameStatusBadge.textContent = "En cours"
-    elements.gameStatusBadge.className = "status-badge started"
-  } else if (gameState.gameStatus === "Finished") {
-    elements.gameStatusBadge.textContent = "Terminée"
-    elements.gameStatusBadge.className = "status-badge finished"
-  } else {
-    elements.gameStatusBadge.textContent = "Inconnu"
-    elements.gameStatusBadge.className = "status-badge unknown"
-  }
-}
-
 // Corriger la fonction switchToCat qui est définie mais incomplète
 function switchToCat() {
   if (!gameState.player || gameState.player.type !== "player") return
@@ -610,8 +506,10 @@ function initGame() {
   // Show login modal at start
   elements.loginModal.style.display = "flex"
 
-  // S'assurer que l'écran d'attente est visible quand le statut est "Pending"
-  updateGameStatusDisplay()
+ // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
+  setTimeout(() => {
+  gameState.map.invalidateSize()
+ }, 100)
 }
 
 // Ajouter des fonctions pour gérer l'overlay de chargement
@@ -704,54 +602,47 @@ elements.createButton.addEventListener("click", () => {
   elements.joinTab.style.display = "none" // Cacher le formulaire Rejoindre
 })
 
-// Fonction pour changer d'onglet
 function switchTabFn(tabId) {
-  // First check if the tab ID is valid
-  if (!tabId) {
-    console.warn("Invalid tab ID provided")
-    return
-  }
+  if (!tabId) return console.warn("T'as cliqué dans le vide fréro 😭")
 
-  // Get the tab button and content elements
   const tabButton = document.querySelector(`[data-tab="${tabId}"]`)
   const tabContent = document.getElementById(tabId)
+  if (!tabButton || !tabContent) return console.warn(`Tab perdu dans le multiverse : ${tabId}`)
 
-  // Check if elements exist before accessing their properties
-  if (!tabButton || !tabContent) {
-    console.warn(`Tab ${tabId} not found`)
-    return
-  }
+  const rootStyles = getComputedStyle(document.documentElement)
+  const primaryColor = rootStyles.getPropertyValue("--primary-color").trim()
 
-  // Safely deactivate all tabs
-  document.querySelectorAll(".tab-btn").forEach((btn) => {
-    if (btn) btn.classList.remove("active")
+  // Reset tous les boutons et SVG
+  document.querySelectorAll(".nav-tab").forEach((btn) => {
+    btn.classList.remove("active")
+    const svg = btn.querySelector("svg")
+    if (svg) svg.style.stroke = "#fff" // SVG des boutons inactifs = blanc
   })
 
   document.querySelectorAll(".tab-content").forEach((content) => {
-    if (content) content.classList.remove("active")
+    content.classList.remove("active")
   })
 
-  // Activate the selected tab
+  // Active le bon
   tabButton.classList.add("active")
   tabContent.classList.add("active")
 
-  // Handle map tab specifically
-  if (tabId === "map-tab") {
-    if (elements.mapPage) elements.mapPage.style.display = "block"
-    if (elements.playersPage) elements.playersPage.style.display = "none"
+  // Active la couleur sur le bon SVG
+  const activeSvg = tabButton.querySelector("svg")
+  if (activeSvg) activeSvg.style.stroke = primaryColor
 
-    // Refresh map size
-    if (gameState.map) {
-      setTimeout(() => {
-        gameState.map.invalidateSize()
-      }, 100)
-    }
+  // Affichage spécifique map / joueurs
+  if (elements.mapPage) elements.mapPage.style.display = tabId === "map-tab" ? "block" : "none"
+  if (elements.playersPage) elements.playersPage.style.display = tabId === "players-tab" ? "block" : "none"
+
+  // Refresh map si elle est affichée
+  if (tabId === "map-tab" && gameState.map) {
+    setTimeout(() => gameState.map.invalidateSize(), 100)
   }
-  // Handle players tab
-  else if (tabId === "players-tab") {
-    if (elements.mapPage) elements.mapPage.style.display = "none"
-    if (elements.playersPage) elements.playersPage.style.display = "block"
-  }
+  if (tabId === "create-tab" && window.createMap) {
+  setTimeout(() => window.createMap.invalidateSize(), 100)
+}
+
 }
 
 // Add this function to update the UI when the game code changes
@@ -775,8 +666,29 @@ function useCurrentLocation() {
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        document.getElementById("game-latitude").value = position.coords.latitude
-        document.getElementById("game-longitude").value = position.coords.longitude
+        const lat = position.coords.latitude
+        const lng = position.coords.longitude
+
+        // Mettre à jour les champs cachés
+        document.getElementById("game-latitude").value = lat
+        document.getElementById("game-longitude").value = lng
+
+        // Mettre à jour la carte si elle existe
+        if (window.createMap && window.createMapCircle) {
+          const newCenter = L.latLng(lat, lng)
+          window.createMap.setView(newCenter, config.defaultZoom)
+
+          // Mettre à jour le marqueur central
+          window.createMap.eachLayer((layer) => {
+            if (layer instanceof L.Marker) {
+              layer.setLatLng(newCenter)
+            }
+          })
+
+          // Mettre à jour le cercle
+          window.createMapCircle.setLatLng(newCenter)
+        }
+
         showNotification("Position actuelle récupérée avec succès", "success")
       },
       (error) => {
@@ -851,17 +763,6 @@ function setupEventListeners() {
     }
   })
 
-  // Map click for movement (only if player is joined)
-  gameState.map.on("click", (e) => {
-    if (gameState.player) {
-      // Le déplacement manuel n'est plus autorisé, utilisation de la géolocalisation
-      showNotification("Le déplacement manuel n'est plus autorisé. Utilisation de la géolocalisation.", "info")
-    } else {
-      // If player hasn't joined yet, show a message
-      showNotification("Veuillez d'abord rejoindre la partie !", "warning")
-    }
-  })
-
   // Theme toggle
   elements.themeToggle.addEventListener("click", () => {
     gameState.darkMode = !gameState.darkMode
@@ -899,6 +800,123 @@ function setupEventListeners() {
   if (useLocationBtn) {
     useLocationBtn.addEventListener("click", useCurrentLocation)
   }
+
+  // Initialiser la carte de création de partie
+  initCreateMap()
+
+  // Gérer le slider de rayon
+  const boundaryRadiusSlider = document.getElementById("boundary-radius-slider")
+  const boundaryRadiusValue = document.getElementById("boundary-radius-value")
+
+  if (boundaryRadiusSlider && boundaryRadiusValue) {
+    boundaryRadiusSlider.addEventListener("input", function () {
+      const value = this.value
+      boundaryRadiusValue.textContent = value
+
+      // Mettre à jour le rayon du cercle sur la carte
+      if (window.createMapCircle) {
+        window.createMapCircle.setRadius(Number.parseInt(value))
+      }
+    })
+  }
+
+  // Gérer le slider de rayon de proximité
+  const proximityRadiusSlider = document.getElementById("proximity-radius-slider")
+  const proximityRadiusValue = document.getElementById("proximity-radius-value")
+  const proximityRadiusHidden = document.getElementById("proximity-radius")
+
+  if (proximityRadiusSlider && proximityRadiusValue && proximityRadiusHidden) {
+    proximityRadiusSlider.addEventListener("input", function () {
+      const value = this.value
+      proximityRadiusValue.textContent = value
+      proximityRadiusHidden.value = value
+    })
+  }
+}
+
+// Initialiser la carte pour la création de partie
+function initCreateMap() {
+  const createMapContainer = document.getElementById("create-map-container")
+  if (!createMapContainer) return
+
+  // Initialiser la carte avec le thème actuel
+  const createMap = L.map("create-map-container").setView(config.defaultCenter, config.defaultZoom)
+
+  // Ajouter le fond de carte selon le thème
+  updateCreateMapTheme(gameState.darkMode)
+
+  // Créer un marqueur pour le centre
+  const centerIcon = L.divIcon({
+    className: "center-marker",
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+  })
+
+  const centerMarker = L.marker(config.defaultCenter, {
+    icon: centerIcon,
+    draggable: false,
+  }).addTo(createMap)
+
+  // Créer un cercle pour visualiser la zone de jeu
+  window.createMapCircle = L.circle(config.defaultCenter, {
+    radius: 1000, // Valeur initiale
+    color: "#6c5ce7",
+    fillColor: "#6c5ce7",
+    fillOpacity: 0.1,
+    weight: 2,
+    dashArray: "5, 10",
+  }).addTo(createMap)
+
+  // Gérer les clics sur la carte
+  createMap.on("click", (e) => {
+    const newCenter = e.latlng
+
+    // Mettre à jour la position du marqueur et du cercle
+    centerMarker.setLatLng(newCenter)
+    window.createMapCircle.setLatLng(newCenter)
+
+    // Mettre à jour les champs cachés pour le formulaire
+    document.getElementById("game-latitude").value = newCenter.lat
+    document.getElementById("game-longitude").value = newCenter.lng
+  })
+
+  // Fonction pour mettre à jour le thème de la carte
+  function updateCreateMapTheme(isDark) {
+    // Supprimer les couches de tuiles existantes
+    createMap.eachLayer((layer) => {
+      if (layer instanceof L.TileLayer) {
+        createMap.removeLayer(layer)
+      }
+    })
+
+    // Ajouter la couche appropriée selon le thème
+    if (isDark) {
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; CARTO',
+      }).addTo(createMap)
+    } else {
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; CARTO',
+      }).addTo(createMap)
+    }
+  }
+
+  // Mettre à jour la carte quand le thème change
+  elements.themeToggle.addEventListener("click", () => {
+    setTimeout(() => {
+      updateCreateMapTheme(gameState.darkMode)
+    }, 100)
+  })
+
+  // Ajouter la carte à la fenêtre pour y accéder ailleurs
+  window.createMap = createMap
+
+  setTimeout(() => {
+  createMap.invalidateSize()
+}, 100)
+
 }
 
 // Function to switch between tabs
@@ -937,7 +955,6 @@ function switchTab(tabName) {
 
     // Update score display when switching to players tab
     if (gameState.player) {
-      updateScoreDisplay()
     }
   }
 }
@@ -949,7 +966,7 @@ async function handleCreateGame(e) {
   const name = elements.creatorName.value.trim()
   const gameCode = elements.newGameCode.value.trim().toUpperCase()
   const duration = Number.parseInt(elements.gameDuration.value)
-  const boundaryRadius = Number.parseInt(elements.boundaryRadius.value)
+  const boundaryRadius = Number.parseInt(document.getElementById("boundary-radius-slider").value)
   const proximityRadius = Number.parseInt(elements.proximityRadius.value)
 
   if (!name) {
@@ -1450,14 +1467,6 @@ async function joinGame(name, type, position, gameCode) {
     // Subscribe to real-time updates
     subscribeToUpdates()
 
-    // Subscribe to marker updates
-    subscribeToMarkerUpdates()
-
-    // If game is already started, load markers
-    if (gameState.gameStatus === "Started") {
-      loadGameMarkers(gameCode)
-    }
-
     // Update lists
     updatePlayersList()
     updateCatsList()
@@ -1466,9 +1475,6 @@ async function joinGame(name, type, position, gameCode) {
     // Mettre à jour le compteur de joueurs dans la même partie
     updateSameGamePlayersCount()
 
-    // Start score update interval using config updateInterval
-    startScoreInterval()
-
     // Update UI based on player type
     if (type === "player") {
       elements.switchToCatContainer.style.display = "block"
@@ -1476,6 +1482,9 @@ async function joinGame(name, type, position, gameCode) {
 
     // Show quit button
     elements.quitGameBtn.style.display = "block"
+
+    document.getElementById("score-module").style.display = "block"
+    document.getElementById("player-type-indicator").style.display = "block"
 
     // Configurer l'intervalle de synchronisation avec le serveur
     setInterval(syncWithServer, config.updateInterval)
@@ -1500,10 +1509,6 @@ async function joinGame(name, type, position, gameCode) {
       elements.waitingScreen.style.display = "flex"
       elements.mapPage.style.display = "none"
     }
-
-    // Mettre à jour l'affichage du statut
-    updateGameStatusDisplay()
-
     // Actualiser immédiatement la carte pour afficher tous les joueurs
     refreshMapAndLists()
 
@@ -1511,6 +1516,9 @@ async function joinGame(name, type, position, gameCode) {
 
     // Vérifier si le joueur est le créateur et afficher le bouton de démarrage si nécessaire
     checkIfPlayerIsCreator()
+
+  gameState.map.invalidateSize()
+
   } catch (error) {
     console.error("Error in joinGame:", error)
     showNotification("Une erreur s'est produite lors de la connexion. Veuillez réessayer.", "error")
@@ -1588,10 +1596,7 @@ function addPlayerToMap(entity) {
         <div style="background-color: #f59e0b; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center;
         justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"></path>
-          <path d="M8 14v.5"></path>
-          <path d="M16 14v.5"></path>
-          <path d="M11.25 16.25h1.5L12 17l-.75-.75Z"></path>
+          <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7
         </svg>
       </div>
     `,
@@ -1865,20 +1870,6 @@ async function startGame() {
       return
     }
 
-    // Create markers for the game
-    if (gameState.gameCenterPosition) {
-      const markersCreated = await createGameMarkers(
-        gameState.gameCode,
-        gameState.gameCenterPosition,
-        config.globalBoundaryRadius,
-      )
-
-      if (!markersCreated) {
-        showNotification("Erreur lors de la création des marqueurs", "error")
-        return
-      }
-    }
-
     // Mettre à jour le statut de la partie
     supabase
       .from("game_settings")
@@ -1895,6 +1886,7 @@ async function startGame() {
 
         showNotification("La partie a commencé!", "success")
 
+
         // Mettre à jour le statut local
         gameState.gameStatus = "Started"
 
@@ -1904,15 +1896,20 @@ async function startGame() {
 
         // Démarrer le chronomètre
         startGameTimer()
-
-        // Load markers
-        loadGameMarkers(gameState.gameCode)
+           // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
+  setTimeout(() => {
+  gameState.map.invalidateSize()
+ }, 100)
       })
       .catch((error) => {
         console.error("Erreur lors du démarrage de la partie:", error)
         showNotification("Erreur lors du démarrage de la partie", "error")
       })
   })
+   // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
+  setTimeout(() => {
+  gameState.map.invalidateSize()
+ }, 100)
 }
 
 // Handle real-time updates
@@ -2162,11 +2159,6 @@ function setupGeoLocationWatch() {
           if (gameState.player) {
             gameState.player.position = newPlayerPosition
             updateCurrentPlayerPosition(newPlayerPosition)
-
-            // Check if player can collect any markers
-            if (gameState.gameStatus === "Started") {
-              checkMarkerCollection()
-            }
           }
         },
         (error) => {
@@ -2367,6 +2359,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
   document.getElementsByTagName("head")[0].appendChild(meta)
 
+  // Ajouter des champs cachés pour la latitude et longitude
+  const createForm = document.getElementById("create-form")
+  if (createForm) {
+    const latInput = document.createElement("input")
+    latInput.type = "hidden"
+    latInput.id = "game-latitude"
+    latInput.value = config.defaultCenter[0]
+
+    const lngInput = document.createElement("input")
+    lngInput.type = "hidden"
+    lngInput.id = "game-longitude"
+    lngInput.value = config.defaultCenter[1]
+
+    createForm.appendChild(latInput)
+    createForm.appendChild(lngInput)
+  }
+
   // Récupérer le code de partie depuis l'URL
   urlGameCode = getUrlParameter("code").toUpperCase()
 
@@ -2417,61 +2426,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   } else {
     showNotification("Erreur de connexion à la base de données. Veuillez rafraîchir la page et réessayer.", "error")
   }
-})
 
-// Fix the QR code button functionality
-document.addEventListener("DOMContentLoaded", () => {
-  // QR code setup
-  const qrButton = document.getElementById("qr-code-button")
-  const qrModal = document.getElementById("qr-code-modal")
-  const closeModal = document.querySelector(".close")
-  const codeToLeave = document.getElementById("code-to-leave")
-
-  if (qrButton && qrModal && closeModal) {
-    qrButton.addEventListener("click", () => {
-      if (gameState.gameCode) {
-        // Generate QR code with game URL
-        const gameUrl = `${window.location.origin}${window.location.pathname}?code=${gameState.gameCode}`
-
-        // Display game code
-        if (codeToLeave) {
-          codeToLeave.textContent = `Code de partie: ${gameState.gameCode}`
-        }
-
-        // Generate QR code
-        const qrContainer = document.getElementById("qr-code")
-        if (qrContainer) {
-          qrContainer.innerHTML = ""
-          // QRCode variable is undeclared. Please fix the import or declare the variable before using it.
-          new QRCode(qrContainer, {
-            text: gameUrl,
-            width: 200,
-            height: 200,
-            colorDark: "#000000",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H,
-          })
-        }
-
-        // Show modal
-        qrModal.style.display = "flex"
-      } else {
-        showNotification("Rejoignez d'abord une partie pour générer un QR code", "warning")
-      }
-    })
-
-    // Close modal when clicking the X
-    closeModal.addEventListener("click", () => {
-      qrModal.style.display = "none"
-    })
-
-    // Close modal when clicking outside
-    window.addEventListener("click", (event) => {
-      if (event.target === qrModal) {
-        qrModal.style.display = "none"
-      }
-    })
-  }
+  // Générer un code aléatoire au chargement de la page
+  generateCode()
 })
 
 // Modify the refreshMapAndLists function to be more reliable
@@ -2576,11 +2533,6 @@ async function refreshMapAndLists() {
           inZone: player.inZone,
         }
 
-        // Update score display if it changed
-        if (oldScore !== player.score) {
-          updateScoreDisplay()
-        }
-
         if (player.type === "cat" && !gameState.playerCatMarker) {
           addCatMarker(player)
         }
@@ -2595,8 +2547,10 @@ async function refreshMapAndLists() {
     updatePlayersList()
     updateCatsList()
     updateCountBadges()
-    subscribeToMarkerUpdates()
-    loadGameMarkers(gameState.gameCode)
+       // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
+  setTimeout(() => {
+  gameState.map.invalidateSize()
+ }, 100)
   } catch (error) {
     console.error("Error in refreshMapAndLists:", error)
   }
@@ -2672,9 +2626,6 @@ function handleGameSettingsUpdate(payload) {
     // Mettre à jour le statut local
     gameState.gameStatus = newRecord.status
 
-    // Mettre à jour l'affichage du statut
-    updateGameStatusDisplay()
-
     if (newRecord.status === "Started") {
       gameDuration = newRecord.duration || 60
       startGameTimer()
@@ -2685,602 +2636,9 @@ function handleGameSettingsUpdate(payload) {
       if (elements.scoreModule) {
         elements.scoreModule.style.display = "block"
       }
-
       showNotification("La partie a commencé !", "success")
     }
   }
-}
-
-// Fonction pour créer les marqueurs de jeu, un par un
-async function createGameMarkers(gameCode, centerPosition, boundaryRadius) {
-  try {
-    // Créer un premier marqueur, les autres seront créés progressivement
-    const marker = generateRandomMarker(gameCode, centerPosition, boundaryRadius)
-
-    // Insérer le premier marqueur dans la base de données
-    const { data, error } = await supabase.from("game_markers").insert([marker])
-
-    if (error) {
-      console.error("Erreur lors de la création du marqueur:", error)
-      return false
-    }
-
-    console.log("Premier marqueur créé pour la partie:", gameCode)
-
-    // Planifier la création des autres marqueurs avec un délai entre chaque
-    scheduleNextMarker(gameCode, centerPosition, boundaryRadius, 1)
-
-    return true
-  } catch (error) {
-    console.error("Erreur dans createGameMarkers:", error)
-    return false
-  }
-}
-
-// Fonction pour planifier la création du prochain marqueur
-function scheduleNextMarker(gameCode, centerPosition, boundaryRadius, count) {
-  if (count >= 10) return // Maximum 10 marqueurs
-
-  // Délai aléatoire entre 30 et 90 secondes pour le prochain marqueur
-  const delay = 30000 + Math.random() * 60000
-
-  setTimeout(async () => {
-    const marker = generateRandomMarker(gameCode, centerPosition, boundaryRadius)
-
-    const { error } = await supabase.from("game_markers").insert([marker])
-
-    if (error) {
-      console.error("Erreur lors de la création du marqueur:", error)
-    } else {
-      console.log(`Marqueur #${count + 1} créé pour la partie ${gameCode}`)
-      // Planifier le prochain marqueur
-      scheduleNextMarker(gameCode, centerPosition, boundaryRadius, count + 1)
-    }
-  }, delay)
-}
-
-// Fonction pour générer un marqueur aléatoire
-function generateRandomMarker(gameCode, centerPosition, boundaryRadius) {
-  // Générer une position aléatoire dans la zone de jeu
-  const angle = Math.random() * Math.PI * 2
-  const distance = Math.random() * (boundaryRadius * 0.8) // Garder dans 80% du rayon
-  const markerLat = centerPosition.lat + (Math.sin(angle) * distance) / 111000
-  const markerLng =
-    centerPosition.lng + (Math.cos(angle) * distance) / (111000 * Math.cos((centerPosition.lat * Math.PI) / 180))
-
-  // Rayon aléatoire entre 50 et 200 mètres
-  const radius = Math.floor(50 + Math.random() * 150)
-
-  // Points aléatoires entre 50 et 300
-  const points = Math.floor(50 + Math.random() * 250)
-
-  // Temps de capture aléatoire entre 10 et 60 secondes
-  const captureTime = Math.floor(10 + Math.random() * 50)
-
-  return {
-    game_code: gameCode,
-    lat: markerLat,
-    lng: markerLng,
-    radius: radius,
-    points: points,
-    capture_time: captureTime, // Temps en secondes pour capturer
-    active: true,
-  }
-}
-
-// Fonction pour ajouter un marqueur sur la carte
-function addMarkerToMap(marker) {
-  // Créer un cercle pour le marqueur
-  const markerCircle = L.circle([marker.lat, marker.lng], {
-    radius: marker.radius,
-    color: "#f39c12",
-    fillColor: "#f39c12",
-    fillOpacity: 0.4,
-    weight: 2,
-    className: "game-marker",
-  }).addTo(gameState.map)
-
-  // Stocker le marqueur avec son cercle
-  gameState.markers.set(marker.id, {
-    data: marker,
-    circle: markerCircle,
-    captureProgress: 0,
-    captureStartTime: null,
-    captureInterval: null,
-  })
-
-  // Ajouter un popup avec les informations
-  markerCircle.bindPopup(`Marqueur: ${marker.points} points<br>Temps de capture: ${marker.capture_time}s`)
-}
-
-// Fonction pour vérifier si le joueur peut collecter des marqueurs
-function checkMarkerCollection() {
-  if (!gameState.player || !gameState.player.position || gameState.player.type !== "player") return
-
-  let insideAnyMarker = false
-
-  gameState.markers.forEach((marker, markerId) => {
-    const distance = gameState.map.distance(
-      [gameState.player.position.lat, gameState.player.position.lng],
-      [marker.data.lat, marker.data.lng],
-    )
-
-    // Si le joueur est dans le rayon du marqueur
-    if (distance <= marker.data.radius) {
-      insideAnyMarker = true
-
-      // Si c'est la première fois qu'on entre dans ce marqueur
-      if (marker.captureStartTime === null) {
-        marker.captureStartTime = Date.now()
-        marker.captureProgress = 0
-
-        // Créer ou mettre à jour la barre de progression
-        showMarkerProgressBar(marker)
-
-        // Démarrer l'intervalle de mise à jour de la progression
-        marker.captureInterval = setInterval(() => {
-          updateMarkerCaptureProgress(markerId)
-        }, 100) // Mise à jour toutes les 100ms
-      }
-    } else {
-      // Si on sort du marqueur, réinitialiser la progression
-      if (marker.captureStartTime !== null) {
-        marker.captureStartTime = null
-        marker.captureProgress = 0
-
-        // Cacher la barre de progression
-        hideMarkerProgressBar()
-
-        // Arrêter l'intervalle
-        if (marker.captureInterval) {
-          clearInterval(marker.captureInterval)
-          marker.captureInterval = null
-        }
-      }
-    }
-  })
-
-  // Si on n'est dans aucun marqueur, cacher la barre de progression
-  if (!insideAnyMarker) {
-    hideMarkerProgressBar()
-  }
-}
-
-// Fonction pour mettre à jour la progression de capture d'un marqueur
-async function updateMarkerCaptureProgress(markerId) {
-  const marker = gameState.markers.get(markerId)
-  if (!marker || marker.captureStartTime === null) return
-
-  // Calculer la progression
-  const elapsedTime = (Date.now() - marker.captureStartTime) / 1000 // en secondes
-  const progress = Math.min(100, (elapsedTime / marker.data.capture_time) * 100)
-  marker.captureProgress = progress
-
-  // Mettre à jour la barre de progression
-  updateMarkerProgressBar(progress, marker.data.capture_time - elapsedTime)
-
-  // Si la capture est terminée
-  if (progress >= 100) {
-    // Arrêter l'intervalle
-    clearInterval(marker.captureInterval)
-    marker.captureInterval = null
-
-    // Cacher la barre de progression
-    hideMarkerProgressBar()
-
-    // Supprimer le marqueur de la carte
-    if (marker.circle) {
-      gameState.map.removeLayer(marker.circle)
-    }
-
-    // Supprimer du tableau local
-    gameState.markers.delete(markerId)
-
-    // Mettre à jour le marqueur dans la base de données
-    const { error } = await supabase
-      .from("game_markers")
-      .update({
-        active: false,
-        collected_by: gameState.player.name,
-        collected_at: new Date().toISOString(),
-      })
-      .eq("id", markerId)
-
-    if (error) {
-      console.error("Erreur lors de la mise à jour du marqueur:", error)
-      return
-    }
-
-    // Ajouter des points au joueur
-    gameState.player.score += marker.data.points
-
-    // Mettre à jour le score du joueur dans la base de données
-    await supabase
-      .from("player")
-      .update({
-        score: Math.round(gameState.player.score),
-      })
-      .eq("id", gameState.player.id)
-
-    // Mettre à jour l'affichage du score
-    updateScoreDisplay()
-
-    // Afficher une notification
-    showNotification(`Marqueur collecté ! +${marker.data.points} points`, "success")
-  }
-}
-
-// Fonction pour afficher la barre de progression de capture
-function showMarkerProgressBar(marker) {
-  // Créer la barre de progression si elle n'existe pas
-  if (!elements.markerProgress.parentNode) {
-    elements.markerProgress.className = "marker-progress"
-    elements.markerProgress.innerHTML = `
-      <div class="progress-container">
-        <div class="progress-bar"></div>
-      </div>
-      <div class="progress-text">Capture en cours: 0%</div>
-    `
-    document.body.appendChild(elements.markerProgress)
-  }
-
-  // Afficher la barre
-  elements.markerProgress.style.display = "block"
-
-  // Initialiser la progression
-  updateMarkerProgressBar(0, marker.data.capture_time)
-}
-
-// Fonction pour mettre à jour la barre de progression
-function updateMarkerProgressBar(progress, timeLeft) {
-  if (!elements.markerProgress) return
-
-  const progressBar = elements.markerProgress.querySelector(".progress-bar")
-  const progressText = elements.markerProgress.querySelector(".progress-text")
-
-  if (progressBar && progressText) {
-    progressBar.style.width = `${progress}%`
-    progressText.textContent = `Capture en cours: ${Math.round(progress)}% (${Math.ceil(timeLeft)}s)`
-  }
-}
-
-// Fonction pour cacher la barre de progression
-function hideMarkerProgressBar() {
-  if (elements.markerProgress) {
-    elements.markerProgress.style.display = "none"
-  }
-}
-
-// This function needs to be modified to check the display_at and expire_at times
-function loadGameMarkers(gameCode) {
-  try {
-    // Modified query to only get markers that should be displayed now
-    // Only get markers where:
-    // 1. They belong to the current game
-    // 2. They are active
-    // 3. Their display time has arrived (display_at <= now)
-    // 4. They haven't expired yet (expire_at > now or expire_at is null)
-    const now = new Date().toISOString()
-
-    supabase
-      .from("game_markers")
-      .select("*")
-      .eq("game_code", gameCode)
-      .eq("active", true)
-      .lte("display_at", now)
-      .or(`expire_at.gt.${now},expire_at.is.null`)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Erreur lors du chargement des marqueurs:", error)
-          return
-        }
-
-        if (data) {
-          // Clear existing markers first
-          gameState.markers.forEach((marker, id) => {
-            if (marker.circle) {
-              gameState.map.removeLayer(marker.circle)
-            }
-            if (marker.captureInterval) {
-              clearInterval(marker.captureInterval)
-            }
-          })
-          gameState.markers.clear()
-
-          // Add the markers that should be visible now
-          data.forEach((marker) => {
-            addMarkerToMap(marker)
-          })
-
-          console.log(`Loaded ${data.length} active markers for game ${gameCode}`)
-        }
-      })
-  } catch (error) {
-    console.error("Erreur dans loadGameMarkers:", error)
-  }
-}
-
-// Modify the handleMarkerUpdate function to check time constraints
-function handleMarkerUpdate(payload) {
-  const { eventType, new: newRecord, old: oldRecord } = payload
-  const now = new Date()
-
-  // Ne traiter que les marqueurs de la partie en cours
-  if (newRecord && newRecord.game_code !== gameState.gameCode) return
-  if (oldRecord && oldRecord.game_code !== gameState.gameCode) return
-
-  switch (eventType) {
-    case "INSERT":
-      // Only add the marker if it should be displayed now
-      if (newRecord.display_at && new Date(newRecord.display_at) > now) {
-        console.log(`Marker ${newRecord.id} will be displayed later at ${newRecord.display_at}`)
-        // Schedule the marker to appear when it's time
-        scheduleMarkerAppearance(newRecord)
-      } else if (!newRecord.expire_at || new Date(newRecord.expire_at) > now) {
-        // Add the marker if it's time to display and hasn't expired
-        addMarkerToMap(newRecord)
-      }
-      break
-
-    case "UPDATE":
-      // If the marker is no longer active or has expired, remove it
-      if (newRecord.active === false || (newRecord.expire_at && new Date(newRecord.expire_at) <= now)) {
-        if (gameState.markers.has(newRecord.id)) {
-          const marker = gameState.markers.get(newRecord.id)
-
-          // Arrêter l'intervalle de capture si nécessaire
-          if (marker.captureInterval) {
-            clearInterval(marker.captureInterval)
-            marker.captureInterval = null
-          }
-
-          // Supprimer le cercle de la carte
-          if (marker.circle) {
-            gameState.map.removeLayer(marker.circle)
-          }
-
-          // Supprimer du tableau local
-          gameState.markers.delete(newRecord.id)
-
-          // Si collecté par quelqu'un d'autre, afficher une notification
-          if (newRecord.collected_by && gameState.player && newRecord.collected_by !== gameState.player.name) {
-            showNotification(`${newRecord.collected_by} a collecté un marqueur !`, "info")
-          }
-        }
-      }
-      break
-
-    case "DELETE":
-      // Supprimer le marqueur supprimé
-      if (gameState.markers.has(oldRecord.id)) {
-        const marker = gameState.markers.get(oldRecord.id)
-
-        // Arrêter l'intervalle de capture si nécessaire
-        if (marker.captureInterval) {
-          clearInterval(marker.captureInterval)
-          marker.captureInterval = null
-        }
-
-        // Supprimer le cercle de la carte
-        if (marker.circle) {
-          gameState.map.removeLayer(marker.circle)
-        }
-
-        // Supprimer du tableau local
-        gameState.markers.delete(oldRecord.id)
-      }
-      break
-  }
-}
-
-// Add a new function to schedule marker appearance
-function scheduleMarkerAppearance(marker) {
-  const now = new Date()
-  const displayTime = new Date(marker.display_at)
-  const timeUntilDisplay = displayTime - now
-
-  if (timeUntilDisplay <= 0) {
-    // If it's already time to display, add it immediately
-    addMarkerToMap(marker)
-    return
-  }
-
-  // Schedule the marker to appear at the right time
-  setTimeout(() => {
-    // Check if the game is still active before adding the marker
-    if (gameState.gameStatus === "Started" && gameState.gameCode === marker.game_code) {
-      // Check if the marker hasn't expired yet
-      const currentTime = new Date()
-      if (!marker.expire_at || new Date(marker.expire_at) > currentTime) {
-        // Fetch the latest marker data to ensure it's still active
-        supabase
-          .from("game_markers")
-          .select("*")
-          .eq("id", marker.id)
-          .eq("active", true)
-          .single()
-          .then(({ data, error }) => {
-            if (!error && data) {
-              addMarkerToMap(data)
-              showNotification("Un nouveau marqueur est apparu sur la carte !", "info")
-            }
-          })
-      }
-    }
-  }, timeUntilDisplay)
-
-  console.log(`Scheduled marker ${marker.id} to appear in ${Math.round(timeUntilDisplay / 1000)} seconds`)
-}
-
-// Add a function to check for marker expiration
-function checkMarkerExpiration() {
-  const now = new Date()
-
-  gameState.markers.forEach((marker, id) => {
-    if (marker.data.expire_at && new Date(marker.data.expire_at) <= now) {
-      // Marker has expired, remove it
-      if (marker.captureInterval) {
-        clearInterval(marker.captureInterval)
-        marker.captureInterval = null
-      }
-
-      if (marker.circle) {
-        gameState.map.removeLayer(marker.circle)
-      }
-
-      gameState.markers.delete(id)
-      console.log(`Marker ${id} expired and was removed`)
-    }
-  })
-}
-
-// Modify the createGameMarkers function to distribute markers over time
-async function createGameMarkers(gameCode, centerPosition, boundaryRadius) {
-  try {
-    // Get the game duration to distribute markers
-    const { data: gameSettings, error: settingsError } = await supabase
-      .from("game_settings")
-      .select("duration")
-      .eq("code", gameCode)
-      .single()
-
-    if (settingsError) {
-      console.error("Erreur lors de la récupération des paramètres de jeu:", settingsError)
-      return false
-    }
-
-    const gameDuration = gameSettings.duration || 60 // Default to 60 minutes
-    const totalMarkers = 10 // Total number of markers to create
-    const intervalMinutes = Math.floor(gameDuration / totalMarkers)
-
-    // Create the first marker immediately
-    const now = new Date()
-    const gameEndTime = new Date(now.getTime() + gameDuration * 60000)
-
-    // Create the first marker with immediate display
-    const firstMarker = generateRandomMarker(gameCode, centerPosition, boundaryRadius)
-    firstMarker.display_at = now.toISOString()
-    firstMarker.expire_at = new Date(now.getTime() + intervalMinutes * 60000).toISOString()
-
-    // Insert the first marker
-    const { error } = await supabase.from("game_markers").insert([firstMarker])
-
-    if (error) {
-      console.error("Erreur lors de la création du marqueur:", error)
-      return false
-    }
-
-    console.log("Premier marqueur créé pour la partie:", gameCode)
-
-    // Schedule creation of remaining markers
-    for (let i = 1; i < totalMarkers; i++) {
-      const displayTime = new Date(now.getTime() + i * intervalMinutes * 60000)
-      const expireTime = new Date(displayTime.getTime() + intervalMinutes * 60000)
-
-      // Don't create markers that would appear after game end
-      if (displayTime >= gameEndTime) break
-
-      const marker = generateRandomMarker(gameCode, centerPosition, boundaryRadius)
-      marker.display_at = displayTime.toISOString()
-      marker.expire_at = expireTime > gameEndTime ? gameEndTime.toISOString() : expireTime.toISOString()
-
-      // Insert the marker with scheduled display/expire times
-      supabase
-        .from("game_markers")
-        .insert([marker])
-        .then(({ error }) => {
-          if (error) {
-            console.error(`Erreur lors de la création du marqueur #${i + 1}:`, error)
-          } else {
-            console.log(
-              `Marqueur #${i + 1} créé pour la partie ${gameCode}, apparaîtra à ${displayTime.toLocaleTimeString()}`,
-            )
-          }
-        })
-    }
-
-    return true
-  } catch (error) {
-    console.error("Erreur dans createGameMarkers:", error)
-    return false
-  }
-}
-
-// Add a periodic check for marker expiration and new markers
-function startMarkerManagement() {
-  // Check for expired markers every 30 seconds
-  setInterval(checkMarkerExpiration, 30000)
-
-  // Refresh markers from the database every 2 minutes
-  setInterval(() => {
-    if (gameState.gameStatus === "Started" && gameState.gameCode) {
-      loadGameMarkers(gameState.gameCode)
-    }
-  }, 120000)
-}
-
-// Call this function when the game starts
-function startGame() {
-  if (!gameState.player || !gameState.gameCode) return
-
-  // Vérifier si le joueur est le créateur
-  checkIfPlayerIsCreator().then(async (isCreator) => {
-    if (!isCreator) {
-      showNotification("Seul le créateur de la partie peut la démarrer", "error")
-      return
-    }
-
-    // Create markers for the game with time distribution
-    if (gameState.gameCenterPosition) {
-      const markersCreated = await createGameMarkers(
-        gameState.gameCode,
-        gameState.gameCenterPosition,
-        config.globalBoundaryRadius,
-      )
-
-      if (!markersCreated) {
-        showNotification("Erreur lors de la création des marqueurs", "error")
-        return
-      }
-    }
-
-    // Mettre à jour le statut de la partie
-    supabase
-      .from("game_settings")
-      .update({
-        status: "Started",
-      })
-      .eq("code", gameState.gameCode)
-      .then(({ error }) => {
-        if (error) {
-          console.error("Erreur lors du démarrage de la partie:", error)
-          showNotification("Erreur lors du démarrage de la partie", "error")
-          return
-        }
-
-        showNotification("La partie a commencé!", "success")
-
-        // Mettre à jour le statut local
-        gameState.gameStatus = "Started"
-
-        // Cacher l'écran d'attente et afficher la carte
-        elements.waitingScreen.style.display = "none"
-        elements.mapPage.style.display = "block"
-
-        // Démarrer le chronomètre
-        startGameTimer()
-
-        // Start marker management
-        startMarkerManagement()
-
-        // Load initial markers
-        loadGameMarkers(gameState.gameCode)
-      })
-      .catch((error) => {
-        console.error("Erreur lors du démarrage de la partie:", error)
-        showNotification("Erreur lors du démarrage de la partie", "error")
-      })
-  })
 }
 
 // Make sure to call startMarkerManagement when the game status changes to Started
@@ -3291,9 +2649,6 @@ function handleGameSettingsUpdate(payload) {
     // Mettre à jour le statut local
     gameState.gameStatus = newRecord.status
 
-    // Mettre à jour l'affichage du statut
-    updateGameStatusDisplay()
-
     if (newRecord.status === "Started") {
       gameDuration = newRecord.duration || 60
       startGameTimer()
@@ -3305,23 +2660,7 @@ function handleGameSettingsUpdate(payload) {
         elements.scoreModule.style.display = "block"
       }
 
-      // Start marker management when game starts
-      startMarkerManagement()
-
-      // Load initial markers
-      loadGameMarkers(gameState.gameCode)
-
       showNotification("La partie a commencé !", "success")
     }
   }
-}
-
-// Subscribe to marker updates
-function subscribeToMarkerUpdates() {
-  gameState.markerSubscription = supabase
-    .channel("game_markers")
-    .on("postgres_changes", { event: "*", schema: "public", table: "game_markers" }, (payload) =>
-      handleMarkerUpdate(payload),
-    )
-    .subscribe()
 }

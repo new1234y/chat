@@ -22,7 +22,7 @@
 </head>
 <body>
 <!-- Ajouter un nouvel élément pour l'indicateur de type de joueur juste après la balise <body>: -->
-<div id="player-type-indicator">
+<div id="player-type-indicator" style="display: none;">
   <div class="player-type-content">
     <div id="player-type-icon"></div>
     <span id="player-type-text">Joueur</span>
@@ -141,34 +141,35 @@
         </div>
         <div class="form-group">
           <label for="new-game-code">Code de partie</label>
-        <div class="code-random">
-          <input type="text" id="new-game-code" required minlength="3" maxlength="8" placeholder="Créez un code unique" />
-          <button id="btn-random"  type="button" onclick="generateCode()"><i class="fa-solid fa-shuffle"></i></button>
-        </div>
+          <div class="code-display">
+            <span id="generated-code-display"></span>
+            <button id="btn-random" type="button" onclick="generateCode()"><i class="fa-solid fa-shuffle"></i></button>
+          </div>
+          <input type="hidden" id="new-game-code" required minlength="3" maxlength="8" />
         </div>
         <div class="form-group">
           <label for="game-duration">Durée (minutes)</label>
           <input type="number" id="game-duration" min="10" max="120" value="60" />
         </div>
         <div class="form-group">
-          <label for="boundary-radius">Rayon de la zone (mètres)</label>
-          <input type="number" id="boundary-radius" min="200" max="5000" value="1000" />
+          <label for="map-container">Position du centre de jeu</label>
+          <div id="create-map-container" style="height: 250px; width: 100%; border-radius: var(--border-radius); margin-bottom: 15px; position: relative;">
+            <button id="use-current-location" class="map-control-btn map-center-btn" title="Utiliser ma position">
+              <i class="fa-solid fa-location-crosshairs"></i>
+            </button>
+          </div>
         </div>
         <div class="form-group">
-          <label for="proximity-radius">Rayon de proximité (mètres)</label>
-          <input type="number" id="proximity-radius" min="50" max="500" value="200" />
+          <label for="boundary-radius-slider">Rayon de la zone (mètres): <span id="boundary-radius-value">1000</span></label>
+          <input type="range" id="boundary-radius-slider" min="200" max="5000" value="1000" step="100" class="slider" />
         </div>
         <div class="form-group">
-          <label for="game-latitude">Latitude</label>
-          <input type="number" id="game-latitude" step="0.00000000000001" min="-90" max="90" placeholder="Latitude (ex: 48.8566)" />
+          <label for="proximity-radius-slider">Rayon de proximité (mètres): <span id="proximity-radius-value">200</span></label>
+          <input type="range" id="proximity-radius-slider" min="50" max="500" value="200" step="10" class="slider" />
+          <input type="hidden" id="proximity-radius" value="200" />
         </div>
-        <div class="form-group">
-          <label for="game-longitude">Longitude</label>
-          <input type="number" id="game-longitude" step="0.00000000000001" min="-180" max="180" placeholder="Longitude (ex: 2.3522)" />
-        </div>
-        <div class="form-group">
-          <button type="button" id="use-current-location" class="btn btn-primary">Utiliser ma position</button>
-        </div>
+        <input type="hidden" id="game-latitude" step="0.00000000000001" min="-90" max="90" />
+        <input type="hidden" id="game-longitude" step="0.00000000000001" min="-180" max="180" />
         <button type="submit" class="btn btn-primary">Créer et rejoindre</button>
       </form>
     </div>
@@ -176,10 +177,9 @@
 </div>
 
 <!-- Score module - remis en haut -->
-<div class="score-container" id="score-module">
+<div class="score-container" id="score-module" style="display: none;">
 <div id="player-score">Score: 0</div>
 <!-- Add game status and time displays -->
-<div id="game-status-badge" class="badge status-badge status-pending">Pending</div>
 <div id="game-time">--:--</div>
 </div>
 
@@ -243,19 +243,6 @@
     <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="m223.5 32c-123.5 0-223.5 100.3-223.5 224s100 224 223.5 224c60.6 0 115.5-24.2 155.8-63.4 5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-19.8 2.6-30.1 2.6-96.9 0-175.5-78.8-175.5-176 0-65.8 36-123.1 89.3-153.3 6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z"></path></svg>    </button>
 </div>
 
-<button id="qr-code-button" class="qr-code-btn">
-  <svg class="qrimg" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><title>ionicons-v5-k</title><rect x="336" y="336" width="80" height="80" rx="8" ry="8"/><rect x="272" y="272" width="64" height="64" rx="8" ry="8"/><rect x="416" y="416" width="64" height="64" rx="8" ry="8"/><rect x="432" y="272" width="48" height="48" rx="8" ry="8"/><rect x="272" y="432" width="48" height="48" rx="8" ry="8"/><path d="M448,32H304a32,32,0,0,0-32,32V208a32,32,0,0,0,32,32H448a32,32,0,0,0,32-32V64A32,32,0,0,0,448,32ZM416,168a8,8,0,0,1-8,8H344a8,8,0,0,1-8-8V104a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/><path d="M208,32H64A32,32,0,0,0,32,64V208a32,32,0,0,0,32,32H208a32,32,0,0,0,32-32V64A32,32,0,0,0,208,32ZM176,168a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V104a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/><path d="M208,272H64a32,32,0,0,0-32,32V448a32,32,0,0,0,32,32H208a32,32,0,0,0,32-32V304A32,32,0,0,0,208,272ZM176,408a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V344a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8Z"/></svg></button>
-
-  <!-- Corriger le QR code modal pour s'assurer qu'il fonctionne correctement -->
-<div id="qr-code-modal" class="modal">
-  <div class="modal-content">
-    <span class="close">&times;</span>
-    <h2>Scannez le QR Code</h2>
-    <div id="qr-code"></div>
-    <p id="code-to-leave">Code de partie:</p>
-  </div>
-</div>
-
 <!-- Bottom navigation bar -->
 <nav id="bottom-navbar">
   <button id="map-tab" class="nav-tab active" data-tab="map-tab">
@@ -302,5 +289,17 @@
   </div>
 </div>
 </body>
-</html>
 
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
+
+<script>
+  // Ajouter un événement de chargement pour jouer le son automatiquement
+  document.addEventListener("DOMContentLoaded", function() {
+    // Joueur le son en fond si c'est la page d'accueil et qu'il y a du code dans l'input
+    if (document.location.pathname === '/' && document.querySelector('#new-game-code').value !== '') {
+      document.getElementById('démarrageAuto').play();
+    }
+  });
+</script>
+</html>
