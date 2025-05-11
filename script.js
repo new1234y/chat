@@ -506,10 +506,10 @@ function initGame() {
   // Show login modal at start
   elements.loginModal.style.display = "flex"
 
- // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
+  // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
   setTimeout(() => {
-  gameState.map.invalidateSize()
- }, 100)
+    gameState.map.invalidateSize()
+  }, 100)
 }
 
 // Ajouter des fonctions pour gérer l'overlay de chargement
@@ -640,9 +640,8 @@ function switchTabFn(tabId) {
     setTimeout(() => gameState.map.invalidateSize(), 100)
   }
   if (tabId === "create-tab" && window.createMap) {
-  setTimeout(() => window.createMap.invalidateSize(), 100)
-}
-
+    setTimeout(() => window.createMap.invalidateSize(), 100)
+  }
 }
 
 // Add this function to update the UI when the game code changes
@@ -797,8 +796,54 @@ function setupEventListeners() {
 
   // Add event listener for the use current location button
   const useLocationBtn = document.getElementById("use-current-location")
+
   if (useLocationBtn) {
-    useLocationBtn.addEventListener("click", useCurrentLocation)
+    useLocationBtn.addEventListener("click", (e) => {
+      e.preventDefault() // Empêche le comportement par défaut
+      e.stopPropagation() // Empêche la propagation de l'événement
+
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude
+            const lng = position.coords.longitude
+
+            // Mettre à jour les champs cachés
+            document.getElementById("game-latitude").value = lat
+            document.getElementById("game-longitude").value = lng
+
+            // Mettre à jour la carte si elle existe
+            if (window.createMap && window.createMapCircle) {
+              const newCenter = L.latLng(lat, lng)
+              window.createMap.setView(newCenter, window.createMap.getZoom())
+
+              // Mettre à jour le marqueur central
+              window.createMap.eachLayer((layer) => {
+                if (layer instanceof L.Marker) {
+                  layer.setLatLng(newCenter)
+                }
+              })
+
+              // Mettre à jour le cercle
+              window.createMapCircle.setLatLng(newCenter)
+            }
+
+            showNotification("Position actuelle récupérée avec succès", "success")
+          },
+          (error) => {
+            console.error("Erreur de géolocalisation:", error)
+            showNotification("Impossible d'obtenir votre position actuelle", "error")
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0,
+          },
+        )
+      } else {
+        showNotification("La géolocalisation n'est pas prise en charge par votre navigateur", "error")
+      }
+    })
   }
 
   // Initialiser la carte de création de partie
@@ -914,9 +959,8 @@ function initCreateMap() {
   window.createMap = createMap
 
   setTimeout(() => {
-  createMap.invalidateSize()
-}, 100)
-
+    createMap.invalidateSize()
+  }, 100)
 }
 
 // Function to switch between tabs
@@ -1517,8 +1561,7 @@ async function joinGame(name, type, position, gameCode) {
     // Vérifier si le joueur est le créateur et afficher le bouton de démarrage si nécessaire
     checkIfPlayerIsCreator()
 
-  gameState.map.invalidateSize()
-
+    gameState.map.invalidateSize()
   } catch (error) {
     console.error("Error in joinGame:", error)
     showNotification("Une erreur s'est produite lors de la connexion. Veuillez réessayer.", "error")
@@ -1886,7 +1929,6 @@ async function startGame() {
 
         showNotification("La partie a commencé!", "success")
 
-
         // Mettre à jour le statut local
         gameState.gameStatus = "Started"
 
@@ -1896,20 +1938,20 @@ async function startGame() {
 
         // Démarrer le chronomètre
         startGameTimer()
-           // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
-  setTimeout(() => {
-  gameState.map.invalidateSize()
- }, 100)
+        // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
+        setTimeout(() => {
+          gameState.map.invalidateSize()
+        }, 100)
       })
       .catch((error) => {
         console.error("Erreur lors du démarrage de la partie:", error)
         showNotification("Erreur lors du démarrage de la partie", "error")
       })
   })
-   // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
+  // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
   setTimeout(() => {
-  gameState.map.invalidateSize()
- }, 100)
+    gameState.map.invalidateSize()
+  }, 100)
 }
 
 // Handle real-time updates
@@ -2547,10 +2589,10 @@ async function refreshMapAndLists() {
     updatePlayersList()
     updateCatsList()
     updateCountBadges()
-       // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
-  setTimeout(() => {
-  gameState.map.invalidateSize()
- }, 100)
+    // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
+    setTimeout(() => {
+      gameState.map.invalidateSize()
+    }, 100)
   } catch (error) {
     console.error("Error in refreshMapAndLists:", error)
   }
@@ -2663,4 +2705,260 @@ function handleGameSettingsUpdate(payload) {
       showNotification("La partie a commencé !", "success")
     }
   }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const manualLocationToggle = document.getElementById("manual-location-toggle")
+  const manualLocationFields = document.getElementById("manual-location-fields")
+  const manualLatitudeInput = document.getElementById("manual-latitude")
+  const manualLongitudeInput = document.getElementById("manual-longitude")
+
+  // Afficher/masquer les champs latitude/longitude
+  manualLocationToggle.addEventListener("click", () => {
+    const isVisible = manualLocationFields.style.display === "block"
+    manualLocationFields.style.display = isVisible ? "none" : "block"
+  })
+
+  // Mettre à jour la carte en temps réel lorsque les valeurs changent
+  const updateMapWithManualLocation = () => {
+    const manualLat = Number.parseFloat(manualLatitudeInput.value)
+    const manualLng = Number.parseFloat(manualLongitudeInput.value)
+
+    if (!isNaN(manualLat) && !isNaN(manualLng)) {
+      // Mettre à jour les champs cachés pour le formulaire
+      document.getElementById("game-latitude").value = manualLat
+      document.getElementById("game-longitude").value = manualLng
+
+      // Mettre à jour la carte si elle existe
+      if (window.createMap && window.createMapCircle) {
+        const newCenter = L.latLng(manualLat, manualLng)
+        window.createMap.setView(newCenter, window.createMap.getZoom())
+
+        // Mettre à jour le marqueur central
+        window.createMap.eachLayer((layer) => {
+          if (layer instanceof L.Marker) {
+            layer.setLatLng(newCenter)
+          }
+        })
+
+        // Mettre à jour le cercle
+        window.createMapCircle.setLatLng(newCenter)
+      }
+    }
+  }
+
+  // Ajouter des écouteurs d'événements sur les champs de latitude et longitude
+  manualLatitudeInput.addEventListener("input", updateMapWithManualLocation)
+  manualLongitudeInput.addEventListener("input", updateMapWithManualLocation)
+
+  // Prendre en compte les valeurs saisies dans les champs lors de la soumission du formulaire
+  const createForm = document.getElementById("create-form")
+  createForm.addEventListener("submit", (e) => {
+    const manualLat = Number.parseFloat(manualLatitudeInput.value)
+    const manualLng = Number.parseFloat(manualLongitudeInput.value)
+
+    if (!isNaN(manualLat) && !isNaN(manualLng)) {
+      document.getElementById("game-latitude").value = manualLat
+      document.getElementById("game-longitude").value = manualLng
+    }
+  })
+})
+
+// Ajouter la fonction openAvatarModal
+function openAvatarModal(playerId) {
+  const modal = document.getElementById("avatar-modal")
+  const emojiList = document.getElementById("emoji-list")
+  modal.style.display = "flex"
+
+  // Ajouter les émojis prédéfinis
+  const emojis = [
+    "😀",
+    "😎",
+    "🐱",
+    "🐶",
+    "🦊",
+    "🐻",
+    "🐼",
+    "🐨",
+    "🐯",
+    "🦁",
+    "🐸",
+    "🐵",
+    "🐔",
+    "🐧",
+    "🐦",
+    "🐤",
+    "🐣",
+    "🐥",
+    "🦄",
+    "🐝",
+    "🐞",
+    "🐢",
+  ]
+  emojiList.innerHTML = ""
+  emojis.forEach((emoji) => {
+    const emojiButton = document.createElement("button")
+    emojiButton.textContent = emoji
+    emojiButton.style.fontSize = "24px"
+    emojiButton.style.cursor = "pointer"
+    emojiButton.addEventListener("click", () => {
+      saveAvatar(playerId, emoji)
+      modal.style.display = "none"
+    })
+    emojiList.appendChild(emojiButton)
+  })
+
+  // Gérer le bouton pour télécharger une image
+  const uploadButton = document.getElementById("upload-image-button")
+  uploadButton.addEventListener("click", () => {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = "image/*"
+    input.addEventListener("change", (event) => {
+      const file = event.target.files[0]
+      if (file) {
+        const reader = new FileReader()
+        reader.onload = () => {
+          saveAvatar(playerId, reader.result) // Base64
+          modal.style.display = "none"
+        }
+        reader.readAsDataURL(file)
+      }
+    })
+    input.click()
+  })
+
+  // Gérer le bouton pour prendre une photof
+  const takePhotoButton = document.getElementById("take-photo-button")
+  takePhotoButton.addEventListener("click", () => {
+    // Implémentation pour prendre une photo (nécessite une API caméra)
+    alert("Prendre une photo n'est pas encore implémenté.")
+  })
+
+  // Fermer la modal
+  const closeButton = document.getElementById("close-avatar-modal")
+  closeButton.addEventListener("click", () => {
+    modal.style.display = "none"
+  })
+}
+
+// Ajouter la fonction saveAvatar
+async function saveAvatar(playerId, avatar) {
+  try {
+    const { error } = await supabase
+      .from("player")
+      .update({ image: avatar }) // Sauvegarde l'émoji ou l'image en base64
+      .eq("id", playerId)
+
+    if (error) {
+      console.error("Erreur lors de la sauvegarde de l'avatar :", error)
+      showNotification("Erreur lors de la sauvegarde de l'avatar.", "error")
+    } else {
+      showNotification("Avatar mis à jour avec succès !", "success")
+      refreshMapAndLists() // Met à jour l'interface
+    }
+  } catch (err) {
+    console.error("Erreur :", err)
+  }
+}
+
+// Ajouter des écouteurs d'événements pour les boutons d'ajout d'image
+document.getElementById("add-player-icon-join").addEventListener("click", (e) => {
+  e.preventDefault()
+  openImageSelector("player-name")
+})
+
+document.getElementById("add-player-icon-create").addEventListener("click", (e) => {
+  e.preventDefault()
+  openImageSelector("creator-name")
+})
+
+// Fonction pour ouvrir le sélecteur d'image
+function openImageSelector(associatedInputId) {
+  // Créer un élément input de type file
+  const fileInput = document.createElement("input")
+  fileInput.type = "file"
+  fileInput.accept = "image/*"
+
+  // Sur mobile, cela ouvrira automatiquement les options de caméra/galerie
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    fileInput.capture = "environment" // Permet de suggérer l'utilisation de la caméra
+  }
+
+  // Gérer la sélection de fichier
+  fileInput.addEventListener("change", function () {
+    if (this.files && this.files[0]) {
+      const file = this.files[0]
+      const reader = new FileReader()
+
+      reader.onload = (e) => {
+        // Convertir l'image en base64 (Data URL)
+        const imageBase64 = e.target.result
+
+        // Stocker l'image dans le tableau player
+        const playerName = document.getElementById(associatedInputId).value
+
+        // Si nous sommes en train de rejoindre ou créer une partie
+        if (gameState.player) {
+          // Mettre à jour le joueur existant
+          gameState.player.image = imageBase64
+
+          // Mettre à jour dans la base de données
+          supabase
+            .from("player")
+            .update({ image: imageBase64 })
+            .eq("id", gameState.player.id)
+            .then(({ error }) => {
+              if (error) {
+                console.error("Erreur lors de la mise à jour de l'image:", error)
+                showNotification("Erreur lors de l'enregistrement de l'image", "error")
+              } else {
+                showNotification("Image ajoutée avec succès", "success")
+              }
+            })
+        } else {
+          // Stocker temporairement l'image pour l'utiliser lors de la création/jonction
+          sessionStorage.setItem("playerImage", imageBase64)
+          showNotification("Image sélectionnée", "success")
+        }
+      }
+
+      // Lire le fichier comme Data URL (base64)
+      reader.readAsDataURL(file)
+    }
+  })
+
+  // Déclencher le clic sur l'input file
+  fileInput.click()
+}
+
+// Modifier la fonction joinGame pour inclure l'image
+const originalJoinGame = joinGame
+joinGame = async (name, type, position, gameCode) => {
+  // Récupérer l'image stockée temporairement, si disponible
+  const playerImage = sessionStorage.getItem("playerImage")
+
+  // Appeler la fonction originale
+  const result = await originalJoinGame(name, type, position, gameCode)
+
+  // Si une image a été sélectionnée, l'ajouter au joueur
+  if (playerImage && gameState.player) {
+    gameState.player.image = playerImage
+
+    // Mettre à jour dans la base de données
+    supabase
+      .from("player")
+      .update({ image: playerImage })
+      .eq("id", gameState.player.id)
+      .then(({ error }) => {
+        if (error) {
+          console.error("Erreur lors de la mise à jour de l'image:", error)
+        } else {
+          // Effacer l'image temporaire
+          sessionStorage.removeItem("playerImage")
+        }
+      })
+  }
+
+  return result
 }

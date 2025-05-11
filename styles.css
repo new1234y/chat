@@ -1612,10 +1612,41 @@ body.dark {
 .progress-text {
   font-size: 0.9rem;
 }
-
 .dark .marker-progress {
   background-color: rgba(52, 152, 219, 0.8);
 }
+
+/* Styles pour les groupe de icone de nom de joueur */
+
+.name-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.circle-btn {
+      position: relative;
+    /* width: 20%; */
+    /* height: 33%; */
+    border-radius: 15px;
+    background-color: var(--primary-color);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    cursor: pointer;
+    z-index: 1000;
+    transition: transform 0.2s;
+    padding: 10px 12px;
+    margin: 0 10px 0 0;
+}
+.circle-btn:hover {
+  transform: scale(1.1);
+}
+
 
 /* Styles pour le slider */
 .slider {
@@ -1729,3 +1760,4 @@ body.dark {
 #proximity-radius-slider {
   margin-bottom: 5px;
 }
+

@@ -116,8 +116,13 @@
     <div id="join-tab" class="tab-content active">
       <form id="join-form">
         <div class="form-group">
-          <label for="player-name">Votre nom</label>
+          <label for="player-name">Votre nom</label><br>
+          <div class="name-group">
+               <button type="button" id="add-player-icon-join" class="circle-btn">
+      <i class="fa fa-plus"></i>
+    </button>
           <input type="text" id="player-name" required minlength="2" placeholder="Entrez votre nom" />
+          </div>
         </div>
         <!-- Champ de code de partie, caché par défaut si code dans URL -->
         <div class="form-group" id="game-code-container" style="display: none;">
@@ -137,9 +142,14 @@
       <form id="create-form">
         <div class="form-group">
           <label for="creator-name">Votre nom</label>
+          <div class="name-group">
+           <button type="button" id="add-player-icon-create" class="circle-btn">
+           <i class="fa fa-plus"></i>
+          </button>
           <input type="text" id="creator-name" required minlength="2" placeholder="Entrez votre nom" />
+          </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="display: none;">
           <label for="new-game-code">Code de partie</label>
           <div class="code-display">
             <span id="generated-code-display"></span>
@@ -157,6 +167,17 @@
             <button id="use-current-location" class="map-control-btn map-center-btn" title="Utiliser ma position">
               <i class="fa-solid fa-location-crosshairs"></i>
             </button>
+          </div>
+          <p id="manual-location-toggle" class="clickable-text" style="text-align: center; margin-top: 10px;">Être plus précis pour la localisation</p>
+          <div id="manual-location-fields" style="display: none; margin-top: 10px;">
+            <div class="form-group">
+              <label for="manual-latitude">Latitude</label>
+              <input type="number" id="manual-latitude" step="0.000001" placeholder="Entrez la latitude" />
+            </div>
+            <div class="form-group">
+              <label for="manual-longitude">Longitude</label>
+              <input type="number" id="manual-longitude" step="0.000001" placeholder="Entrez la longitude" />
+            </div>
           </div>
         </div>
         <div class="form-group">
