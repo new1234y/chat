@@ -333,31 +333,6 @@ function addCatMarker(player) {
   gameState.playerCatMarker.bindPopup(player.name)
 }
 
-// Ajouter la fonction updateSameGamePlayersCount qui est appelée mais non définie
-async function updateSameGamePlayersCount() {
-  if (!gameState.gameCode) return
-
-  try {
-    // Compter les joueurs avec le même code de partie
-    const { data, error } = await supabase.from("player").select("id").eq("gameCode", gameState.gameCode)
-
-    if (error) {
-      console.error("Erreur lors du comptage des joueurs :", error)
-      return
-    }
-
-    const playerCount = data.length
-
-    // Mettre à jour l'affichage
-    const sameGameCountElement = document.getElementById("same-game-count")
-    if (sameGameCountElement) {
-      sameGameCountElement.textContent = `Joueurs dans cette partie: ${playerCount}`
-    }
-  } catch (error) {
-    console.error("Erreur lors du comptage des joueurs :", error)
-  }
-}
-
 // Corriger la fonction switchToCat qui est définie mais incomplète
 function switchToCat() {
   if (!gameState.player || gameState.player.type !== "player") return
@@ -1562,9 +1537,6 @@ async function joinGame(name, type, position, gameCode) {
     updatePlayersList()
     updateCatsList()
     updateCountBadges()
-
-    // Mettre à jour le compteur de joueurs dans la même partie
-    updateSameGamePlayersCount()
 
     // Update UI based on player type
     if (type === "player") {
