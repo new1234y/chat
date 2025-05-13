@@ -877,6 +877,47 @@ function setupEventListeners() {
       proximityRadiusHidden.value = value
     })
   }
+
+  // Add functionality to share the game code
+  document.getElementById("share-game-code").addEventListener("click", () => {
+    const gameCode = gameState.gameCode || elements.gameCode.value.trim().toUpperCase()
+    if (gameCode) {
+      const shareUrl = `https://new1234y.github.io/chat/?code=${gameCode}`
+      navigator.clipboard
+        .writeText(shareUrl)
+        .then(() => {
+          showNotification("Lien de partage copié dans le presse-papiers !", "success")
+        })
+        .catch(() => {
+          showNotification("Impossible de copier le lien. Veuillez réessayer.", "error")
+        })
+    } else {
+      showNotification("Aucun code de partie disponible à partager.", "error")
+    }
+  })
+
+  // Add functionality to open the QR code modal
+  document.getElementById("qr-code-button").addEventListener("click", () => {
+    const gameCode = gameState.gameCode || elements.gameCode.value.trim().toUpperCase()
+    if (gameCode) {
+      const qrUrl = `https://new1234y.github.io/chat/?code=${gameCode}`
+      const qrContainer = document.getElementById("qr-code-container")
+      qrContainer.innerHTML = "" // Clear previous QR code
+      new QRCode(qrContainer, {
+        text: qrUrl,
+        width: 200,
+        height: 200,
+      })
+      document.getElementById("qr-code-modal").style.display = "flex"
+    } else {
+      showNotification("Aucun code de partie disponible pour générer un QR code.", "error")
+    }
+  })
+
+  // Close the QR code modal
+  document.getElementById("close-qr-modal").addEventListener("click", () => {
+    document.getElementById("qr-code-modal").style.display = "none"
+  })
 }
 
 // Initialiser la carte pour la création de partie
@@ -1076,6 +1117,9 @@ async function handleCreateGame(e) {
     gameState.gameStatus = "Pending"
     gameState.gameCode = gameCode
 
+    // Mettre à jour l'affichage du code de partie dans l'écran d'attente
+    updateWaitingScreenGameCode()
+
     // Stocker la position centrale de cette partie
     gameState.gameCenterPosition = {
       lat: mapCenterLat,
@@ -1233,6 +1277,9 @@ async function handleJoinGame(e) {
     // La partie existe, vérifier son statut
     gameState.gameStatus = gameResult.status
     gameState.gameCode = gameCode
+
+    // Mettre à jour l'affichage du code de partie dans l'écran d'attente
+    updateWaitingScreenGameCode()
 
     if (gameResult.status === "Started") {
       // Définir la durée de jeu
@@ -1560,6 +1607,9 @@ async function joinGame(name, type, position, gameCode) {
 
     // Vérifier si le joueur est le créateur et afficher le bouton de démarrage si nécessaire
     checkIfPlayerIsCreator()
+
+    // Mettre à jour l'affichage du code de partie dans l'écran d'attente
+    updateWaitingScreenGameCode()
 
     gameState.map.invalidateSize()
   } catch (error) {
@@ -2961,4 +3011,12 @@ joinGame = async (name, type, position, gameCode) => {
   }
 
   return result
+}
+
+// Ajouter cette fonction pour mettre à jour l'affichage du code de partie dans l'écran d'attente
+function updateWaitingScreenGameCode() {
+  const waitingGameCodeElement = document.getElementById("waiting-game-code")
+  if (waitingGameCodeElement && gameState.gameCode) {
+    waitingGameCodeElement.textContent = gameState.gameCode
+  }
 }

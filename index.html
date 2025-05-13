@@ -17,6 +17,7 @@
 ></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <link rel="stylesheet" href="styles.css" />
 </head>
@@ -212,6 +213,15 @@
     <h2>En attente de démarrage</h2>
     <div class="loader-spinner"></div>
     <div id="same-game-count" class="waiting-count">Joueurs dans cette partie: 0</div>
+    <div id="game-code-display" class="game-code-display">
+      <button id="qr-code-button" class="btn btn-secondary qr-code-btn">
+        <i class="fa fa-qrcode"></i>
+      </button>
+      Code: <span id="waiting-game-code">--</span>
+      <button id="share-game-code" class="btn btn-secondary share-btn">
+        <i class="fa fa-share-alt"></i> Partager
+      </button>
+    </div>
     <p class="waiting-info">La partie commencera bientôt...</p>
     
     <!-- Bouton de démarrage (visible uniquement pour le créateur) -->
@@ -307,6 +317,15 @@
     <h2>Partie terminée</h2>
     <p id="game-ended-message">La partie a été arrêtée par le créateur.</p>
     <button id="acknowledge-game-ended" class="btn btn-primary" style="margin-top: 20px;">OK</button>
+  </div>
+</div>
+
+<!-- Modal for QR Code -->
+<div id="qr-code-modal" class="modal">
+  <div class="modal-content">
+    <span id="close-qr-modal" class="close">&times;</span>
+    <h2>QR Code de la partie</h2>
+    <div id="qr-code-container" style="text-align: center; margin-top: 20px;"></div>
   </div>
 </div>
 </body>

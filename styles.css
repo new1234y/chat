@@ -1625,28 +1625,27 @@ body.dark {
 }
 
 .circle-btn {
-      position: relative;
-    /* width: 20%; */
-    /* height: 33%; */
-    border-radius: 15px;
-    background-color: var(--primary-color);
-    color: #fff;
-    border: none;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    cursor: pointer;
-    z-index: 1000;
-    transition: transform 0.2s;
-    padding: 10px 12px;
-    margin: 0 10px 0 0;
+  position: relative;
+  /* width: 20%; */
+  /* height: 33%; */
+  border-radius: 15px;
+  background-color: var(--primary-color);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  cursor: pointer;
+  z-index: 1000;
+  transition: transform 0.2s;
+  padding: 10px 12px;
+  margin: 0 10px 0 0;
 }
 .circle-btn:hover {
   transform: scale(1.1);
 }
-
 
 /* Styles pour le slider */
 .slider {
@@ -1761,3 +1760,186 @@ body.dark {
   margin-bottom: 5px;
 }
 
+/* Ajouter des styles pour l'affichage du code de partie */
+.game-code-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px; /* Add spacing between code and button */
+  background-color: var(--primary-color);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 30px;
+  font-weight: bold;
+  margin: 15px 0;
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+}
+
+.share-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  color: var(--primary-color);
+  border: none;
+  border-radius: 20px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.share-btn i {
+  margin-right: 5px; /* Add spacing between icon and text */
+}
+
+.share-btn:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.share-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Améliorer la responsivité de l'écran d'attente */
+.waiting-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 20px;
+  text-align: center;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.waiting-container h2 {
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  font-size: 1.6rem;
+}
+
+.waiting-info {
+  margin-top: 15px;
+  color: var(--foreground-light);
+  font-size: 1rem;
+  padding: 0 10px;
+  max-width: 300px;
+  line-height: 1.4;
+}
+
+.dark .waiting-info {
+  color: var(--foreground-dark);
+}
+
+.waiting-count {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: bold;
+  margin: 15px 0;
+  font-size: 1rem;
+}
+
+/* Améliorer l'affichage sur les petits écrans */
+@media (max-width: 360px) {
+  .waiting-container h2 {
+    font-size: 1.4rem;
+  }
+
+  .waiting-count,
+  .game-code-display {
+    font-size: 0.9rem;
+    padding: 6px 12px;
+  }
+
+  .waiting-info {
+    font-size: 0.9rem;
+  }
+
+  .loader-spinner {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+/* QR Code Button and Modal */
+.qr-code-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  color: var(--primary-color);
+  border: none;
+  border-radius: 20px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.qr-code-btn i {
+  font-size: 1.2rem;
+}
+
+.qr-code-btn:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.qr-code-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+#qr-code-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 3000;
+  justify-content: center;
+  align-items: center;
+}
+
+#qr-code-modal .modal-content {
+  background-color: var(--background-light);
+  color: var(--foreground-light);
+  padding: 20px;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: var(--box-shadow);
+}
+
+.dark #qr-code-modal .modal-content {
+  background-color: var(--background-dark);
+  color: var(--foreground-dark);
+}
+
+#qr-code-modal .close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--foreground-light);
+}
+
+.dark #qr-code-modal .close {
+  color: var(--foreground-dark);
+}
