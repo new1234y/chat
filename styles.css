@@ -1685,6 +1685,11 @@ body.dark {
   border: none;
 }
 
+/* Style for the game duration slider */
+#game-duration-slider {
+  margin-bottom: 5px;
+}
+
 /* Style pour le marqueur central */
 .center-marker {
   width: 12px;
@@ -1942,4 +1947,16 @@ body.dark {
 
 .dark #qr-code-modal .close {
   color: var(--foreground-dark);
+}
+
+/* Styles for image preview */
+.icon-preview {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
+  background-color: var(--background-dark);
+    color: var(--foreground-dark);
+    margin: 0px 10px 0px 0px;
 }

@@ -104,6 +104,68 @@ const gameState = {
   gameCenterPosition: null, // Position centrale de la partie actuelle
 }
 
+// Add a fake player object to the game state
+const fakePlayer = {
+  id: "fake-player",
+  name: "Fake Player",
+  position: null,
+  proximityRadius: config.playerProximityRadius,
+  circle: null,
+}
+
+// Function to generate a random position inside the global circle
+function generateRandomPositionInCircle(center, radius) {
+  const angle = Math.random() * Math.PI * 2
+  const distance = Math.random() * radius
+  const lat = center.lat + (Math.sin(angle) * distance) / 111000
+  const lng = center.lng + (Math.cos(angle) * distance) / (111000 * Math.cos((center.lat * Math.PI) / 180))
+  return { lat, lng }
+}
+
+// Function to update the fake player's position and circle
+function updateFakePlayer() {
+  if (!gameState.globalBoundary) return
+
+  const center = gameState.globalBoundary.getLatLng()
+  const radius = gameState.globalBoundary.getRadius()
+
+  // Generate a new random position for the fake player
+  fakePlayer.position = generateRandomPositionInCircle(center, radius)
+
+  // Update or create the fake player's proximity circle
+  if (fakePlayer.circle) {
+    fakePlayer.circle.setLatLng([fakePlayer.position.lat, fakePlayer.position.lng])
+    fakePlayer.circle.setRadius(fakePlayer.proximityRadius)
+  } else {
+    fakePlayer.circle = L.circle([fakePlayer.position.lat, fakePlayer.position.lng], {
+      radius: fakePlayer.proximityRadius,
+      color: "#ff4757",
+      fillColor: "#ff6b81",
+      fillOpacity: 0.3,
+      weight: 1,
+    }).addTo(gameState.map)
+    fakePlayer.circle.bindPopup(`${fakePlayer.name}`)
+  }
+}
+
+// Listen for changes to the global boundary radius and update the fake player
+function setupFakePlayerUpdater() {
+  const boundaryRadiusSlider = document.getElementById("boundary-radius-slider")
+  if (boundaryRadiusSlider) {
+    boundaryRadiusSlider.addEventListener("input", () => {
+      const newRadius = Number.parseInt(boundaryRadiusSlider.value)
+      gameState.globalBoundary.setRadius(newRadius)
+      updateFakePlayer()
+    })
+  }
+}
+
+// Call this function after initializing the map
+function initializeFakePlayer() {
+  updateFakePlayer()
+  setupFakePlayerUpdater()
+}
+
 // DOM Elements
 const elements = {
   joinForm: document.getElementById("join-form"),
@@ -485,6 +547,9 @@ function initGame() {
   setTimeout(() => {
     gameState.map.invalidateSize()
   }, 100)
+
+  // Initialize the fake player
+  initializeFakePlayer()
 }
 
 // Ajouter des fonctions pour gérer l'overlay de chargement
@@ -871,28 +936,6 @@ function setupEventListeners() {
     }
   })
 
-  // Add functionality to open the QR code modal
-  document.getElementById("qr-code-button").addEventListener("click", () => {
-    const gameCode = gameState.gameCode || elements.gameCode.value.trim().toUpperCase()
-    if (gameCode) {
-      const qrUrl = `https://new1234y.github.io/chat/?code=${gameCode}`
-      const qrContainer = document.getElementById("qr-code-container")
-      qrContainer.innerHTML = "" // Clear previous QR code
-      new QRCode(qrContainer, {
-        text: qrUrl,
-        width: 200,
-        height: 200,
-      })
-      document.getElementById("qr-code-modal").style.display = "flex"
-    } else {
-      showNotification("Aucun code de partie disponible pour générer un QR code.", "error")
-    }
-  })
-
-  // Close the QR code modal
-  document.getElementById("close-qr-modal").addEventListener("click", () => {
-    document.getElementById("qr-code-modal").style.display = "none"
-  })
 }
 
 // Initialiser la carte pour la création de partie
@@ -901,7 +944,11 @@ function initCreateMap() {
   if (!createMapContainer) return
 
   // Initialiser la carte avec le thème actuel
-  const createMap = L.map("create-map-container").setView(config.defaultCenter, config.defaultZoom)
+  const createMap = L.map("create-map-container", { attributionControl: false,   zoomControl: false // Désactiver les boutons de zoom
+}).setView(
+    config.defaultCenter,
+    config.defaultZoom,
+  )
 
   // Ajouter le fond de carte selon le thème
   updateCreateMapTheme(gameState.darkMode)
@@ -973,6 +1020,69 @@ function initCreateMap() {
 
   // Ajouter la carte à la fenêtre pour y accéder ailleurs
   window.createMap = createMap
+
+  // Add a fake player object for the creation map
+  const fakePlayerForCreateMap = {
+    position: null,
+    proximityRadius: config.playerProximityRadius,
+    circle: null,
+  }
+
+  // Function to generate a random position inside the creation map circle
+  function generateRandomPositionForCreateMap(center, radius) {
+    const angle = Math.random() * Math.PI * 2
+    const distance = Math.random() * radius
+    const lat = center.lat + (Math.sin(angle) * distance) / 111000
+    const lng = center.lng + (Math.cos(angle) * distance) / (111000 * Math.cos((center.lat * Math.PI) / 180))
+    return { lat, lng }
+  }
+
+  // Function to update the fake player's position and circle on the creation map
+  function updateFakePlayerForCreateMap() {
+    if (!window.createMapCircle) return
+
+    const center = window.createMapCircle.getLatLng()
+    const radius = window.createMapCircle.getRadius()
+
+    // Generate a new random position for the fake player
+    fakePlayerForCreateMap.position = generateRandomPositionForCreateMap(center, radius)
+
+    // Update or create the fake player's proximity circle
+    if (fakePlayerForCreateMap.circle) {
+      fakePlayerForCreateMap.circle.setLatLng([fakePlayerForCreateMap.position.lat, fakePlayerForCreateMap.position.lng])
+      fakePlayerForCreateMap.circle.setRadius(fakePlayerForCreateMap.proximityRadius)
+    } else {
+      fakePlayerForCreateMap.circle = L.circle([fakePlayerForCreateMap.position.lat, fakePlayerForCreateMap.position.lng], {
+        radius: fakePlayerForCreateMap.proximityRadius,
+        color: "#ff4757",
+        fillColor: "#ff6b81",
+        fillOpacity: 0.3,
+        weight: 1,
+      }).addTo(createMap)
+      fakePlayerForCreateMap.circle.bindPopup("Fake Player")
+    }
+  }
+
+  // Update the fake player's proximity radius when the proximity-radius-slider changes
+  const proximityRadiusSlider = document.getElementById("proximity-radius-slider")
+  if (proximityRadiusSlider) {
+    proximityRadiusSlider.addEventListener("input", () => {
+      const newProximityRadius = Number.parseInt(proximityRadiusSlider.value)
+      fakePlayerForCreateMap.proximityRadius = newProximityRadius
+      if (fakePlayerForCreateMap.circle) {
+        fakePlayerForCreateMap.circle.setRadius(newProximityRadius)
+      }
+    })
+  }
+
+  // Update the fake player's position and circle when the global circle is moved or resized
+  if (window.createMapCircle) {
+    window.createMapCircle.on("move", updateFakePlayerForCreateMap)
+    window.createMapCircle.on("resize", updateFakePlayerForCreateMap)
+  }
+
+  // Initialize the fake player on the creation map
+  updateFakePlayerForCreateMap()
 
   setTimeout(() => {
     createMap.invalidateSize()
@@ -2902,11 +3012,6 @@ function openImageSelector(associatedInputId) {
   fileInput.type = "file"
   fileInput.accept = "image/*"
 
-  // Sur mobile, cela ouvrira automatiquement les options de caméra/galerie
-  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    fileInput.capture = "environment" // Permet de suggérer l'utilisation de la caméra
-  }
-
   // Gérer la sélection de fichier
   fileInput.addEventListener("change", function () {
     if (this.files && this.files[0]) {
@@ -2914,35 +3019,24 @@ function openImageSelector(associatedInputId) {
       const reader = new FileReader()
 
       reader.onload = (e) => {
-        // Convertir l'image en base64 (Data URL)
         const imageBase64 = e.target.result
 
-        // Stocker l'image dans le tableau player
-        const playerName = document.getElementById(associatedInputId).value
+        // Update the corresponding preview image
+        const previewId = associatedInputId === "player-name" ? "player-icon-preview-join" : "player-icon-preview-create"
+        const buttonId = associatedInputId === "player-name" ? "add-player-icon-join" : "add-player-icon-create"
 
-        // Si nous sommes en train de rejoindre ou créer une partie
-        if (gameState.player) {
-          // Mettre à jour le joueur existant
-          gameState.player.image = imageBase64
+        const previewElement = document.getElementById(previewId)
+        const buttonElement = document.getElementById(buttonId)
 
-          // Mettre à jour dans la base de données
-          supabase
-            .from("player")
-            .update({ image: imageBase64 })
-            .eq("id", gameState.player.id)
-            .then(({ error }) => {
-              if (error) {
-                console.error("Erreur lors de la mise à jour de l'image:", error)
-                showNotification("Erreur lors de l'enregistrement de l'image", "error")
-              } else {
-                showNotification("Image ajoutée avec succès", "success")
-              }
-            })
-        } else {
-          // Stocker temporairement l'image pour l'utiliser lors de la création/jonction
-          sessionStorage.setItem("playerImage", imageBase64)
-          showNotification("Image sélectionnée", "success")
+        if (previewElement && buttonElement) {
+          previewElement.src = imageBase64
+          previewElement.style.display = "block"
+          buttonElement.style.display = "none"
         }
+
+        // Store the image for later use
+        sessionStorage.setItem("playerImage", imageBase64)
+        showNotification("Image sélectionnée", "success")
       }
 
       // Lire le fichier comme Data URL (base64)

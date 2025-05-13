@@ -119,10 +119,11 @@
         <div class="form-group">
           <label for="player-name">Votre nom</label><br>
           <div class="name-group">
-               <button type="button" id="add-player-icon-join" class="circle-btn">
-      <i class="fa fa-plus"></i>
-    </button>
-          <input type="text" id="player-name" required minlength="2" placeholder="Entrez votre nom" />
+            <button type="button" id="add-player-icon-join" class="circle-btn">
+              <i class="fa fa-plus"></i>
+            </button>
+            <img id="player-icon-preview-join" class="icon-preview" style="display: none;" />
+            <input type="text" id="player-name" required minlength="2" placeholder="Entrez votre nom" />
           </div>
         </div>
         <!-- Champ de code de partie, caché par défaut si code dans URL -->
@@ -144,10 +145,11 @@
         <div class="form-group">
           <label for="creator-name">Votre nom</label>
           <div class="name-group">
-           <button type="button" id="add-player-icon-create" class="circle-btn">
-           <i class="fa fa-plus"></i>
-          </button>
-          <input type="text" id="creator-name" required minlength="2" placeholder="Entrez votre nom" />
+            <button type="button" id="add-player-icon-create" class="circle-btn">
+              <i class="fa fa-plus"></i>
+            </button>
+            <img id="player-icon-preview-create" class="icon-preview" style="display: none;" />
+            <input type="text" id="creator-name" required minlength="2" placeholder="Entrez votre nom" />
           </div>
         </div>
         <div class="form-group" style="display: none;">
@@ -214,8 +216,8 @@
     <div class="loader-spinner"></div>
     <div id="game-code-display" class="game-code-display">
       Code: <span id="waiting-game-code">--</span>
-      <button id="share-game-code" class="btn btn-secondary share-btn">
-        <i class="fa fa-share-alt"></i> Partager
+      <button id="share-game-code" class="btn-secondary share-btn">
+        <i class="fa fa-share-alt" style="padding: 5px;"></i> Partager
       </button>
     </div>
     
