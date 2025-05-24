@@ -1640,9 +1640,6 @@ async function joinGame(name, type, position, gameCode) {
     // Add player marker and circle
     addPlayerToMap(playerData)
 
-    // Subscribe to real-time updates
-    subscribeToUpdates()
-
     // Update lists
     updatePlayersList()
     updateCatsList()
@@ -2017,22 +2014,6 @@ async function updatePlayerInZoneStatus(inZone) {
   }
 }
 
-function subscribeToUpdates() {
-  gameState.subscription = supabase
-    .channel("player-changes")
-    .on("postgres_changes", { event: "*", schema: "public", table: "player" }, (payload) => {
-      handleRealtimeUpdate(payload)
-    })
-    .subscribe()
-
-  // Souscrire aussi aux changements de game_settings pour détecter les changements de statut
-  supabase
-    .channel("game-settings-changes")
-    .on("postgres_changes", { event: "*", schema: "public", table: "game_settings" }, (payload) => {
-      handleGameSettingsUpdate(payload)
-    })
-    .subscribe()
-}
 
 // Modifier la fonction startGame pour générer les marqueurs au démarrage
 async function startGame() {
@@ -2675,48 +2656,6 @@ async function refreshMapAndLists() {
         console.warn("Using default settings.")
       }
     }
-
-    // Fetch latest player data based on game status
-    let playerQuery = supabase.from("player").select("*").order("score", { ascending: false })
-
-    // Si le jeu a commencé, filtrer par le code de partie
-    if (gameState.gameStatus === "Started" && gameState.gameCode) {
-      playerQuery = playerQuery.eq("gameCode", gameState.gameCode)
-    }
-
-    const { data: players, error: playersError } = await playerQuery
-
-    if (playersError) {
-      console.error("Error fetching players:", playersError)
-      return
-    }
-
-    // Clear current lists
-    gameState.players.clear()
-    gameState.cats.clear()
-
-    // Update lists and map
-    players.forEach((player) => {
-      if (gameState.player && player.id === gameState.player.id) {
-        // Update current player's score without affecting their position
-        const oldScore = gameState.player.score
-
-        gameState.player = {
-          ...gameState.player,
-          score: player.score,
-          inZone: player.inZone,
-        }
-
-        if (player.type === "cat" && !gameState.playerCatMarker) {
-          addCatMarker(player)
-        }
-      } else if (player.type === "player") {
-        gameState.players.set(player.id, { data: player })
-      } else if (player.type === "cat") {
-        gameState.cats.set(player.id, { data: player })
-      }
-    })
-
     updateMap()
     updatePlayersList()
     updateCatsList()
@@ -2792,52 +2731,6 @@ async function updatePlayerPosition() {
 //   collected_at TIMESTAMP WITH TIME ZONE
 // );
 
-// Declare handleGameSettingsUpdate
-function handleGameSettingsUpdate(payload) {
-  const { eventType, new: newRecord } = payload
-
-  if (eventType === "UPDATE" && newRecord.code === gameState.gameCode) {
-    // Mettre à jour le statut local
-    gameState.gameStatus = newRecord.status
-
-    if (newRecord.status === "Started") {
-      gameDuration = newRecord.duration || 60
-      startGameTimer()
-
-      // Cacher l'écran d'attente et afficher la carte
-      elements.waitingScreen.style.display = "none"
-      elements.mapPage.style.display = "block"
-      if (elements.scoreModule) {
-        elements.scoreModule.style.display = "block"
-      }
-      showNotification("La partie a commencé !", "success")
-    }
-  }
-}
-
-// Make sure to call startMarkerManagement when the game status changes to Started
-function handleGameSettingsUpdate(payload) {
-  const { eventType, new: newRecord } = payload
-
-  if (eventType === "UPDATE" && newRecord.code === gameState.gameCode) {
-    // Mettre à jour le statut local
-    gameState.gameStatus = newRecord.status
-
-    if (newRecord.status === "Started") {
-      gameDuration = newRecord.duration || 60
-      startGameTimer()
-
-      // Cacher l'écran d'attente et afficher la carte
-      elements.waitingScreen.style.display = "none"
-      elements.mapPage.style.display = "block"
-      if (elements.scoreModule) {
-        elements.scoreModule.style.display = "block"
-      }
-
-      showNotification("La partie a commencé !", "success")
-    }
-  }
-}
 
 document.addEventListener("DOMContentLoaded", () => {
   const manualLocationToggle = document.getElementById("manual-location-toggle")
@@ -2896,83 +2789,6 @@ document.addEventListener("DOMContentLoaded", () => {
   })
 })
 
-// Ajouter la fonction openAvatarModal
-function openAvatarModal(playerId) {
-  const modal = document.getElementById("avatar-modal")
-  const emojiList = document.getElementById("emoji-list")
-  modal.style.display = "flex"
-
-  // Ajouter les émojis prédéfinis
-  const emojis = [
-    "😀",
-    "😎",
-    "🐱",
-    "🐶",
-    "🦊",
-    "🐻",
-    "🐼",
-    "🐨",
-    "🐯",
-    "🦁",
-    "🐸",
-    "🐵",
-    "🐔",
-    "🐧",
-    "🐦",
-    "🐤",
-    "🐣",
-    "🐥",
-    "🦄",
-    "🐝",
-    "🐞",
-    "🐢",
-  ]
-  emojiList.innerHTML = ""
-  emojis.forEach((emoji) => {
-    const emojiButton = document.createElement("button")
-    emojiButton.textContent = emoji
-    emojiButton.style.fontSize = "24px"
-    emojiButton.style.cursor = "pointer"
-    emojiButton.addEventListener("click", () => {
-      saveAvatar(playerId, emoji)
-      modal.style.display = "none"
-    })
-    emojiList.appendChild(emojiButton)
-  })
-
-  // Gérer le bouton pour télécharger une image
-  const uploadButton = document.getElementById("upload-image-button")
-  uploadButton.addEventListener("click", () => {
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = "image/*"
-    input.addEventListener("change", (event) => {
-      const file = event.target.files[0]
-      if (file) {
-        const reader = new FileReader()
-        reader.onload = () => {
-          saveAvatar(playerId, reader.result) // Base64
-          modal.style.display = "none"
-        }
-        reader.readAsDataURL(file)
-      }
-    })
-    input.click()
-  })
-
-  // Gérer le bouton pour prendre une photof
-  const takePhotoButton = document.getElementById("take-photo-button")
-  takePhotoButton.addEventListener("click", () => {
-    // Implémentation pour prendre une photo (nécessite une API caméra)
-    alert("Prendre une photo n'est pas encore implémenté.")
-  })
-
-  // Fermer la modal
-  const closeButton = document.getElementById("close-avatar-modal")
-  closeButton.addEventListener("click", () => {
-    modal.style.display = "none"
-  })
-}
 
 // Ajouter la fonction saveAvatar
 async function saveAvatar(playerId, avatar) {
