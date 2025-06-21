@@ -282,32 +282,6 @@ function checkGameStatusPeriodically() {
   }, 10000) // Vérifier toutes les 10 secondes
 }
 
-// Ajouter la fonction startGameTimer qui est appelée mais non définie
-function startGameTimer() {
-  const gameStartDate = new Date()
-  const gameEndDate = new Date(gameStartDate.getTime() + gameDuration * 60000)
-
-  gameTimerInterval = setInterval(() => {
-    const now = new Date()
-    const timeLeft = gameEndDate.getTime() - now.getTime()
-
-    if (timeLeft <= 0) {
-      clearInterval(gameTimerInterval)
-      showNotification("La partie est terminée !", "info")
-      return
-    }
-
-    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60))
-    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000)
-
-    // Mettre à jour l'affichage du chronomètre
-    const timerDisplay = document.getElementById("game-time")
-    if (timerDisplay) {
-      timerDisplay.textContent = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`
-    }
-  }, 1000)
-}
-
 // Ajouter la fonction checkIfPlayerIsCreator qui est appelée mais non définie
 async function checkIfPlayerIsCreator() {
   if (!gameState.gameCode || !gameState.player) return false
@@ -2015,7 +1989,7 @@ async function updatePlayerInZoneStatus(inZone) {
 }
 
 
-// Modifier la fonction startGame pour générer les marqueurs au démarrage
+// Modifier la fonction startGame pour enregistrer la date de début
 async function startGame() {
   if (!gameState.player || !gameState.gameCode) return
 
@@ -2026,11 +2000,15 @@ async function startGame() {
       return
     }
 
-    // Mettre à jour le statut de la partie
+    // Obtenir le temps précis au moment où le bouton est pressé
+    const now = new Date().toISOString() // Format ISO pour la base de données
+
+    // Mettre à jour le statut de la partie et la date de début
     supabase
       .from("game_settings")
       .update({
         status: "Started",
+        date_started: now, // <-- Enregistre le temps précis ici
       })
       .eq("code", gameState.gameCode)
       .then(({ error }) => {
@@ -2049,7 +2027,7 @@ async function startGame() {
         elements.waitingScreen.style.display = "none"
         elements.mapPage.style.display = "block"
 
-        // Démarrer le chronomètre
+        // Démarrer le chronomètre (il va maintenant charger date_started)
         startGameTimer()
         // ⚠️ FIX affichage grande map au démarrage (dans le DOM)
         setTimeout(() => {
@@ -2065,6 +2043,160 @@ async function startGame() {
   setTimeout(() => {
     gameState.map.invalidateSize()
   }, 100)
+}
+
+// startGameTimer utilise la date de début et la durée depuis la base de données
+async function startGameTimer() {
+  if (!gameState.gameCode) {
+    console.error("Aucun code de partie disponible pour démarrer le timer")
+    return
+  }
+
+  try {
+    // Charger les paramètres de la partie depuis la base de données
+    const gameSettings = await loadGameSettingsByCode(gameState.gameCode)
+    
+    if (!gameSettings) {
+      console.error("Impossible de charger les paramètres de la partie")
+      showNotification("Erreur lors du chargement des paramètres de la partie", "error")
+      return
+    }
+
+    // Récupérer la date de début (maintenant depuis date_started) et la durée
+    const startDate = new Date(gameSettings.date_started) // <-- Utilise la nouvelle colonne date_started
+    const durationMinutes = gameSettings.duration || 60 // Durée par défaut de 60 minutes
+    const endDate = new Date(startDate.getTime() + durationMinutes * 60000)
+
+    console.log(`Partie démarrée à: ${startDate.toLocaleString()}`)
+    console.log(`Durée: ${durationMinutes} minutes`)
+    console.log(`Fin prévue: ${endDate.toLocaleString()}`)
+
+    // Mettre à jour la durée globale
+    gameDuration = durationMinutes
+
+    // Fonction pour mettre à jour l'affichage du timer
+    function updateTimerDisplay() {
+      const now = new Date()
+      const timeRemaining = endDate.getTime() - now.getTime()
+
+      if (timeRemaining <= 0) {
+        // Temps écoulé - fin de partie
+        clearInterval(gameTimerInterval)
+        
+        // Afficher le temps écoulé
+        const timerElement = document.getElementById("game-time")
+        if (timerElement) {
+          timerElement.textContent = "00:00"
+          timerElement.style.color = "var(--danger-color)"
+        }
+
+        // Arrêter le score si c'est un joueur
+        if (gameState.player && gameState.player.type === "player") {
+          clearInterval(scoreInterval)
+        }
+
+        showNotification("Temps écoulé ! La partie est terminée.", "info")
+        
+        // Optionnel: mettre à jour le statut de la partie en base
+        supabase
+          .from("game_settings")
+          .update({ status: "Finished" })
+          .eq("code", gameState.gameCode)
+          .then(({ error }) => {
+            if (error) {
+              console.error("Erreur lors de la mise à jour du statut:", error)
+            }
+          })
+
+        return
+      }
+
+      // Calculer les minutes et secondes restantes
+      const totalSeconds = Math.floor(timeRemaining / 1000)
+      const minutes = Math.floor(totalSeconds / 60)
+      const seconds = totalSeconds % 60
+
+      // Formater l'affichage (MM:SS)
+      const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+
+      // Mettre à jour l'élément timer s'il existe
+      const timerElement = document.getElementById("game-time")
+      if (timerElement) {
+        timerElement.textContent = formattedTime
+        
+        // Changer la couleur quand il reste moins de 5 minutes
+        if (minutes < 5) {
+          timerElement.style.color = "var(--warning-color)"
+        } else {
+          timerElement.style.color = "" // Réinitialiser la couleur si plus de 5 minutes
+        }
+        
+        // Changer la couleur quand il reste moins de 1 minute
+        if (minutes < 1) {
+          timerElement.style.color = "var(--danger-color)"
+        }
+      }
+
+      // Afficher un avertissement à 5 minutes
+      if (minutes === 5 && seconds === 0) {
+        showNotification("Plus que 5 minutes !", "warning")
+      }
+
+      // Afficher un avertissement à 1 minute
+      if (minutes === 1 && seconds === 0) {
+        showNotification("Plus qu'1 minute !", "warning")
+      }
+
+      // Afficher un avertissement à 30 secondes
+      if (minutes === 0 && seconds === 30) {
+        showNotification("Plus que 30 secondes !", "warning")
+      }
+    }
+
+    // Vérifier si la partie n'est pas déjà terminée
+    const now = new Date()
+    if (now >= endDate) {
+      showNotification("Cette partie est déjà terminée.", "error")
+      return
+    }
+
+    // Démarrer le timer avec mise à jour toutes les secondes
+    updateTimerDisplay() // Mise à jour immédiate
+    gameTimerInterval = setInterval(updateTimerDisplay, 1000)
+
+    // Démarrer le score pour les joueurs
+    if (gameState.player && gameState.player.type === "player") {
+      startScoring()
+    }
+
+    console.log("Timer de jeu démarré avec succès")
+
+  } catch (error) {
+    console.error("Erreur lors du démarrage du timer:", error)
+    showNotification("Erreur lors du démarrage du timer de jeu", "error")
+  }
+}
+
+// Fonction auxiliaire pour démarrer le système de score
+function startScoring() {
+  if (scoreInterval) {
+    clearInterval(scoreInterval)
+  }
+
+  scoreInterval = setInterval(() => {
+    if (gameState.player && gameState.player.type === "player" && gameState.inZone) {
+      // Augmenter le score de 10 points toutes les 20 secondes si dans la zone
+      gameState.player.score += 10
+      
+      // Mettre à jour l'affichage du score
+      if (elements.playerScore) {
+        elements.playerScore.textContent = Math.round(gameState.player.score)
+      }
+
+      // Marquer qu'une mise à jour est nécessaire
+      gameState.pendingPositionUpdate = true
+    }
+  }, 20000) // Toutes les 20 secondes
 }
 
 // Handle real-time updates
