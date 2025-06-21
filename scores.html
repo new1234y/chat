@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scores de la partie</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { background: #f7f7f7; color: #222; }
+    .scores-container { max-width: 500px; margin: 40px auto; background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 32px 24px; }
+    h1 { text-align: center; color: #6c5ce7; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { padding: 12px 8px; text-align: left; }
+    th { background: #6c5ce7; color: #fff; }
+    tr:nth-child(even) { background: #f0f0f0; }
+    .type-player { color: #0984e3; font-weight: bold; }
+    .type-cat { color: #fd7e14; font-weight: bold; }
+    .back-btn { margin-top: 30px; display: block; text-align: center; color: #6c5ce7; text-decoration: underline; cursor: pointer; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="scores-container">
+    <h1>Scores de la partie</h1>
+    <div id="game-code-display" style="text-align:center; margin-bottom: 20px;"></div>
+    <table id="scores-table">
+      <thead>
+        <tr>
+          <th>Pseudo</th>
+          <th>Score</th>
+          <th>Type</th>
+        </tr>
+      </thead>
+      <tbody id="scores-body">
+        <!-- Les scores seront insérés ici -->
+      </tbody>
+    </table>
+    <a class="back-btn" href="index.html">Retour à l'accueil</a>
+  </div>
+  <script>
+    // Config Supabase
+    const supabaseUrl = "https://oadwuacpouppdynssxrw.supabase.co";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hZHd1YWNwb3VwcGR5bnNzeHJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2NzMyMTEsImV4cCI6MjA1NjI0OTIxMX0.MF7Ijl8SHm7wzKt8XiD3EQVqikLaVqkhPAYkqiJHisA";
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    // Récupérer le code de partie depuis l'URL
+    function getUrlParameter(name) {
+      name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+      const regex = new RegExp("[\?&]" + name + "=([^&#]*)");
+      const results = regex.exec(location.search);
+      return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+    }
+    const gameCode = getUrlParameter("code").toUpperCase();
+    document.getElementById("game-code-display").textContent = gameCode ? `Code de partie : ${gameCode}` : "Code de partie non spécifié";
+
+    async function loadScores() {
+      if (!gameCode) return;
+      const { data: players, error } = await supabase
+        .from("player")
+        .select("name, score, type, gameCode")
+        .eq("gameCode", gameCode)
+        .order("score", { ascending: false });
+      const tbody = document.getElementById("scores-body");
+      tbody.innerHTML = "";
+      if (error) {
+        tbody.innerHTML = `<tr><td colspan='3'>Erreur lors du chargement des scores</td></tr>`;
+        return;
+      }
+      if (!players || players.length === 0) {
+        tbody.innerHTML = `<tr><td colspan='3'>Aucun joueur trouvé pour cette partie</td></tr>`;
+        return;
+      }
+      players.forEach(player => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${player.name}</td>
+          <td>${player.score}</td>
+          <td class="type-${player.type}">${player.type === "cat" ? "Chat" : "Joueur"}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    loadScores();
+  </script>
+</body>
+</html>
