@@ -243,21 +243,21 @@ function updatePlayerTypeIndicator() {
 
   if (gameState.player.type === "player") {
     playerTypeIcon.innerHTML = `
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-        <circle cx="12" cy="7" r="4"></circle>
-      </svg>
-    `
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+      <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+  `
     playerTypeText.textContent = "Joueur"
   } else {
     playerTypeIcon.innerHTML = `
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"></path>
-        <path d="M8 14v.5"></path>
-        <path d="M16 14v.5"></path>
-        <path d="M11.25 16.25h1.5L12 17l-.75-.75Z"></path>
-      </svg>
-    `
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"></path>
+      <path d="M8 14v.5"></path>
+      <path d="M16 14v.5"></path>
+      <path d="M11.25 16.25h1.5L12 17l-.75-.75Z"></path>
+    </svg>
+  `
     playerTypeText.textContent = "Chat"
   }
 }
@@ -325,6 +325,16 @@ async function checkIfPlayerIsCreator() {
 
 // Ajouter la fonction handleEntityRemoval qui est appelée mais non définie
 function handleEntityRemoval(oldRecord) {
+  // The real-time subscription already filters by gameCode, so this check is mostly for safety
+  if (!gameState.gameCode || oldRecord.gameCode !== gameState.gameCode) {
+    return
+  }
+
+  // If it's the current player, do not remove their markers/circles, they are managed locally
+  if (gameState.player && oldRecord.id === gameState.player.id) {
+    return
+  }
+
   if (oldRecord.type === "player") {
     if (gameState.players.has(oldRecord.id)) {
       const playerData = gameState.players.get(oldRecord.id)
@@ -342,9 +352,9 @@ function handleEntityRemoval(oldRecord) {
       gameState.cats.delete(oldRecord.id)
     }
   }
-
-  // Update count badges
   updateCountBadges()
+  updatePlayersList() // Update lists on entity removal
+  updateCatsList()
 }
 
 // Ajouter la fonction addCatMarker qui est appelée mais non définie
@@ -357,15 +367,15 @@ function addCatMarker(player) {
     icon: L.divIcon({
       className: "cat-marker",
       html: `
-      <div style="background-color: #f59e0b; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"></path>
-          <path d="M8 14v.5"></path>
-          <path d="M16 14v.5"></path>
-          <path d="M11.25 16.25h1.5L12 17l-.75-.75Z"></path>
-        </svg>
-      </div>
-    `,
+    <div style="background-color: #f59e0b; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"></path>
+        <path d="M8 14v.5"></path>
+        <path d="M16 14v.5"></path>
+        <path d="M11.25 16.25h1.5L12 17l-.75-.75Z"></path>
+      </svg>
+    </div>
+  `,
       iconSize: [30, 30],
       iconAnchor: [15, 15],
     }),
@@ -518,7 +528,7 @@ function goToScoresPage() {
 
 // Ajout de l'écouteur sur le bouton voir les scores
 if (typeof window !== "undefined") {
-  document.addEventListener("DOMContentLoaded", function () {
+  document.addEventListener("DOMContentLoaded", () => {
     const btn = document.getElementById("view-scores-btn")
     if (btn) {
       btn.addEventListener("click", goToScoresPage)
@@ -949,7 +959,6 @@ function setupEventListeners() {
       showNotification("Aucun code de partie disponible à partager.", "error")
     }
   })
-
 }
 
 // Initialiser la carte pour la création de partie
@@ -958,11 +967,10 @@ function initCreateMap() {
   if (!createMapContainer) return
 
   // Initialiser la carte avec le thème actuel
-  const createMap = L.map("create-map-container", { attributionControl: false,   zoomControl: false // Désactiver les boutons de zoom
-}).setView(
-    config.defaultCenter,
-    config.defaultZoom,
-  )
+  const createMap = L.map("create-map-container", {
+    attributionControl: false,
+    zoomControl: false, // Désactiver les boutons de zoom
+  }).setView(config.defaultCenter, config.defaultZoom)
 
   // Ajouter le fond de carte selon le thème
   updateCreateMapTheme(gameState.darkMode)
@@ -1063,16 +1071,22 @@ function initCreateMap() {
 
     // Update or create the fake player's proximity circle
     if (fakePlayerForCreateMap.circle) {
-      fakePlayerForCreateMap.circle.setLatLng([fakePlayerForCreateMap.position.lat, fakePlayerForCreateMap.position.lng])
+      fakePlayerForCreateMap.circle.setLatLng([
+        fakePlayerForCreateMap.position.lat,
+        fakePlayerForCreateMap.position.lng,
+      ])
       fakePlayerForCreateMap.circle.setRadius(fakePlayerForCreateMap.proximityRadius)
     } else {
-      fakePlayerForCreateMap.circle = L.circle([fakePlayerForCreateMap.position.lat, fakePlayerForCreateMap.position.lng], {
-        radius: fakePlayerForCreateMap.proximityRadius,
-        color: "#ff4757",
-        fillColor: "#ff6b81",
-        fillOpacity: 0.3,
-        weight: 1,
-      }).addTo(createMap)
+      fakePlayerForCreateMap.circle = L.circle(
+        [fakePlayerForCreateMap.position.lat, fakePlayerForCreateMap.position.lng],
+        {
+          radius: fakePlayerForCreateMap.proximityRadius,
+          color: "#ff4757",
+          fillColor: "#ff6b81",
+          fillOpacity: 0.3,
+          weight: 1,
+        },
+      ).addTo(createMap)
       fakePlayerForCreateMap.circle.bindPopup("Fake Player")
     }
   }
@@ -1448,30 +1462,54 @@ async function handleJoinGame(e) {
     // Déterminer le type avant de continuer
     type = await determinePlayerType()
 
+    // ANCIEN CODE (à remplacer) :
+    // const { data: existingPlayer, error: checkError } = await supabase
+    //   .from("player")
+    //   .select("id, name")
+    //   .eq("name", name)
+    //   .eq("gameCode", gameCode)
+    //   .single()
+
+    // if (checkError && checkError.code !== "PGRST116") {
+    //   console.error("Error checking player:", checkError)
+    //   showNotification("Erreur lors de la vérification du joueur. Veuillez réessayer.", "error")
+    //   hideLoading()
+    //   return
+    // }
+
+    // if (existingPlayer) {
+    //   const { error: deleteError } = await supabase.from("player").delete().eq("id", existingPlayer.id)
+
+    //   if (deleteError) {
+    //     console.error("Error deleting existing player:", deleteError)
+    //     showNotification("Erreur lors de la récupération du nom d'utilisateur. Veuillez réessayer.", "error")
+    //     hideLoading()
+    //     return
+    //   }
+    // }
+
+    // NOUVEAU CODE (à insérer) :
     const { data: existingPlayer, error: checkError } = await supabase
       .from("player")
-      .select("id, name")
+      .select("id")
       .eq("name", name)
       .eq("gameCode", gameCode)
-      .single()
+      .maybeSingle() // Utiliser maybeSingle pour ne pas lever d'erreur si aucune ligne n'est trouvée
 
-    if (checkError && checkError.code !== "PGRST116") {
-      console.error("Error checking player:", checkError)
-      showNotification("Erreur lors de la vérification du joueur. Veuillez réessayer.", "error")
+    if (checkError) {
+      console.error("Error checking player for duplicate name:", checkError)
+      showNotification("Erreur lors de la vérification du pseudo. Veuillez réessayer.", "error")
       hideLoading()
       return
     }
 
     if (existingPlayer) {
-      const { error: deleteError } = await supabase.from("player").delete().eq("id", existingPlayer.id)
-
-      if (deleteError) {
-        console.error("Error deleting existing player:", deleteError)
-        showNotification("Erreur lors de la récupération du nom d'utilisateur. Veuillez réessayer.", "error")
-        hideLoading()
-        return
-      }
+      showNotification(`Le pseudo "${name}" est déjà pris dans cette partie. Veuillez en choisir un autre.`, "error")
+      hideLoading()
+      return
     }
+
+    // Le reste de la fonction `handleJoinGame` reste inchangé.
 
     // Use geolocation
     if ("geolocation" in navigator) {
@@ -1641,6 +1679,42 @@ async function joinGame(name, type, position, gameCode) {
     updatePlayerTypeIndicator()
     gameState.inZone = isInZone
     gameState.lastServerUpdate = Date.now()
+    gameState.gameCode = gameCode // Assurez-vous que gameCode est défini ici
+
+    // Setup real-time subscription for players in the same game
+    if (gameState.subscription) {
+      supabase.removeChannel(gameState.subscription) // Remove old subscription if exists
+    }
+
+    console.log("Setting up real-time subscription for game:", gameCode) // Debug log
+
+    gameState.subscription = supabase
+      .channel(`game_${gameCode}_players`) // Unique channel name for this game
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "player",
+          filter: `gameCode=eq.${gameCode}`, // Filter by gameCode
+        },
+        (payload) => {
+          console.log("Realtime change received:", payload.eventType, payload) // Enhanced debug log
+          if (payload.eventType === "INSERT") {
+            handleNewEntity(payload.new)
+          } else if (payload.eventType === "UPDATE") {
+            handleEntityUpdate(payload.new)
+          } else if (payload.eventType === "DELETE") {
+            handleEntityRemoval(payload.old)
+          }
+        },
+      )
+      .subscribe((status) => {
+        console.log("Subscription status:", status) // Debug log
+        if (status === "SUBSCRIBED") {
+          console.log("Successfully subscribed to real-time updates for game:", gameCode)
+        }
+      })
 
     // Hide login modal
     elements.loginModal.style.display = "none"
@@ -1654,10 +1728,8 @@ async function joinGame(name, type, position, gameCode) {
     // Add player marker and circle
     addPlayerToMap(playerData)
 
-    // Update lists
-    updatePlayersList()
-    updateCatsList()
-    updateCountBadges()
+    // Fetch existing entities for the current game after subscription is set up
+    await fetchExistingEntities() // Ceci va maintenant récupérer uniquement pour le gameCode actuel
 
     // Update UI based on player type
     if (type === "player") {
@@ -1669,9 +1741,6 @@ async function joinGame(name, type, position, gameCode) {
 
     document.getElementById("score-module").style.display = "block"
     document.getElementById("player-type-indicator").style.display = "block"
-
-    // Configurer l'intervalle de synchronisation avec le serveur
-    setInterval(syncWithServer, config.updateInterval)
 
     // Si le statut est "Started", démarrer le chronomètre
     if (gameState.gameStatus === "Started") {
@@ -1779,16 +1848,16 @@ function addPlayerToMap(entity) {
       icon: L.divIcon({
         className: "cat-marker",
         html: `
-        <div style="background-color: #f59e0b; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center;
-        justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"></path>
-          <path d="M8 14v.5"></path>
-          <path d="M16 14v.5"></path>
-          <path d="M11.25 16.25h1.5L12 17l-.75-.75Z"></path>
-        </svg>
-      </div>
-    `,
+      <div style="background-color: #f59e0b; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"></path>
+        <path d="M8 14v.5"></path>
+        <path d="M16 14v.5"></path>
+        <path d="M11.25 16.25h1.5L12 17l-.75-.75Z"></path>
+      </svg>
+    </div>
+  `,
         iconSize: [30, 30],
         iconAnchor: [15, 15],
       }),
@@ -1827,8 +1896,6 @@ function updateCurrentPlayerPosition(position) {
   const wasOutsideBoundary = gameState.isOutsideBoundary
   gameState.isOutsideBoundary = isOutsideGlobalBoundary
 
- 
-
   // Update inZone status
   const newInZone = !isOutsideGlobalBoundary
   const inZoneChanged = gameState.inZone !== newInZone
@@ -1836,13 +1903,10 @@ function updateCurrentPlayerPosition(position) {
   if (inZoneChanged) {
     console.log(`Player zone status changed: ${wasOutsideBoundary ? "Entering" : "Leaving"} the global circle`)
     gameState.inZone = newInZone
-    gameState.player.inZone = newInZone
+    gameState.player.inZone = newInZone // Corriger: était "newZone" au lieu de "newInZone"
 
     // Marquer qu'une mise à jour est nécessaire
     gameState.pendingPositionUpdate = true
-
-    // Forcer une synchronisation immédiate avec le serveur si le statut de zone a changé
-    syncWithServer()
   }
 
   // If the player is a regular player (not a cat)
@@ -2033,7 +2097,6 @@ async function updatePlayerInZoneStatus(inZone) {
   }
 }
 
-
 // Modifier la fonction startGame pour enregistrer la date de début
 async function startGame() {
   if (!gameState.player || !gameState.gameCode) return
@@ -2100,7 +2163,7 @@ async function startGameTimer() {
   try {
     // Charger les paramètres de la partie depuis la base de données
     const gameSettings = await loadGameSettingsByCode(gameState.gameCode)
-    
+
     if (!gameSettings) {
       console.error("Impossible de charger les paramètres de la partie")
       showNotification("Erreur lors du chargement des paramètres de la partie", "error")
@@ -2127,7 +2190,7 @@ async function startGameTimer() {
       if (timeRemaining <= 0) {
         // Temps écoulé - fin de partie
         clearInterval(gameTimerInterval)
-        
+
         // Afficher le temps écoulé
         const timerElement = document.getElementById("game-time")
         if (timerElement) {
@@ -2141,7 +2204,7 @@ async function startGameTimer() {
         }
 
         showNotification("Temps écoulé ! La partie est terminée.", "info")
-        
+
         // Optionnel: mettre à jour le statut de la partie en base
         supabase
           .from("game_settings")
@@ -2162,20 +2225,20 @@ async function startGameTimer() {
       const seconds = totalSeconds % 60
 
       // Formater l'affichage (MM:SS)
-      const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+      const formattedTime = `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
 
       // Mettre à jour l'élément timer s'il existe
       const timerElement = document.getElementById("game-time")
       if (timerElement) {
         timerElement.textContent = formattedTime
-        
+
         // Changer la couleur quand il reste moins de 5 minutes
         if (minutes < 5) {
           timerElement.style.color = "var(--warning-color)"
         } else {
           timerElement.style.color = "" // Réinitialiser la couleur si plus de 5 minutes
         }
-        
+
         // Changer la couleur quand il reste moins de 1 minute
         if (minutes < 1) {
           timerElement.style.color = "var(--danger-color)"
@@ -2209,13 +2272,7 @@ async function startGameTimer() {
     updateTimerDisplay() // Mise à jour immédiate
     gameTimerInterval = setInterval(updateTimerDisplay, 1000)
 
-    // Démarrer le score pour les joueurs
-    if (gameState.player && gameState.player.type === "player") {
-      startScoring()
-    }
-
     console.log("Timer de jeu démarré avec succès")
-
   } catch (error) {
     console.error("Erreur lors du démarrage du timer:", error)
     showNotification("Erreur lors du démarrage du timer de jeu", "error")
@@ -2224,29 +2281,27 @@ async function startGameTimer() {
 
 // Update count badges in navbar
 function updateCountBadges() {
-  // Ne compter que les joueurs de la même partie si le jeu a commencé
-  let playerCount = 0
-  let catCount = 0
+  // Now that gameState.players and gameState.cats are already filtered by gameCode,
+  // we just count their sizes.
+  let playerCount = gameState.players.size
+  let catCount = gameState.cats.size
 
-  if (gameState.gameStatus === "Started") {
-    playerCount = Array.from(gameState.players.values()).filter(
-      (p) => p.data.type === "player" && p.data.gameCode === gameState.gameCode,
-    ).length
-
-    catCount = Array.from(gameState.cats.values()).filter((c) => c.data.gameCode === gameState.gameCode).length
-  } else {
-    playerCount = Array.from(gameState.players.values()).filter((p) => p.data.type === "player").length
-
-    catCount = Array.from(gameState.cats.values()).length
+  // Add current player/cat if they are not already counted in the maps (they are not, as per fetchExistingEntities and handlers)
+  if (gameState.player) {
+    if (gameState.player.type === "player") {
+      playerCount++
+    } else if (gameState.player.type === "cat") {
+      catCount++
+    }
   }
 
-  // Update the display with exact counts
   elements.playerCountBadge.textContent = `Joueurs: ${playerCount}`
   elements.catCountBadge.textContent = `Chats: ${catCount}`
 }
 
 // Modification de updateMap pour éviter de supprimer le cercle global
 function updateMap() {
+  // Clear all dynamic layers except global boundary and current player's markers/circles
   gameState.map.eachLayer((layer) => {
     if (layer instanceof L.Marker || layer instanceof L.Circle) {
       if (
@@ -2256,175 +2311,159 @@ function updateMap() {
         (gameState.player && layer === gameState.playerCatMarker) ||
         layer instanceof L.TileLayer
       ) {
-        return
+        return // Keep these layers
       }
-      gameState.map.removeLayer(layer)
+      gameState.map.removeLayer(layer) // Remove others
     }
   })
 
-  // Si le jeu est en attente, n'afficher que les joueurs de la même partie
-  if (gameState.gameStatus === "Pending") {
-    // Afficher le joueur actuel
-    if (gameState.player) {
-      if (gameState.player.type === "player") {
-        if (!gameState.playerCircle || !gameState.playerExactPositionMarker) {
-          addPlayerToMap(gameState.player)
-        }
-      } else if (gameState.player.type === "cat") {
-        if (!gameState.playerCatMarker) {
-          addCatMarker(gameState.player)
-        }
-      }
-    }
-
-    // Afficher tous les joueurs de la même partie
-    gameState.players.forEach((player) => {
-      if (!gameState.player || player.data.name !== gameState.player.name) {
-        if (player.data.gameCode === gameState.gameCode) {
-          addPlayerToMap(player.data)
-        }
-      }
-    })
-
-    gameState.cats.forEach((cat) => {
-      if (!gameState.player || cat.data.name !== gameState.player.name) {
-        if (cat.data.gameCode === gameState.gameCode) {
-          addPlayerToMap(cat.data)
-        }
-      }
-    })
-
-    return
-  }
-
-  // Si le jeu a commencé, n'afficher que les joueurs de la même partie
+  // Add all players from gameState.players (already filtered by gameCode)
   gameState.players.forEach((player) => {
-    if (!gameState.player || player.data.name !== gameState.player.name) {
-      if (player.data.gameCode === gameState.gameCode) {
-        addPlayerToMap(player.data)
-      }
-    }
+    addPlayerToMap(player.data)
   })
 
+  // Add all cats from gameState.cats (already filtered by gameCode)
   gameState.cats.forEach((cat) => {
-    if (!gameState.player || cat.data.name !== gameState.player.name) {
-      if (gameState.gameStatus === "Started" && cat.data.gameCode === gameState.gameCode) {
-        addPlayerToMap(cat.data)
-      }
-    }
+    addPlayerToMap(cat.data)
   })
 
-  if (gameState.player) {
-    if (gameState.player.type === "player") {
-      if (!gameState.playerCircle || !gameState.playerExactPositionMarker) {
-        addPlayerToMap(gameState.player)
-      }
-    } else if (gameState.player.type === "cat") {
-      if (!gameState.playerCatMarker) {
-        addCatMarker(gameState.player)
-      }
-    }
-  }
+  // Note: Current player's markers/circles are managed separately and don't need bringToFront()
+  // as they are created after other players' markers, so they naturally appear on top
 }
 
 // Handle new entity
 function handleNewEntity(entity) {
-  // Si le jeu a commencé, ignorer les entités d'autres parties
-  if (gameState.gameStatus === "Started" && entity.gameCode !== gameState.gameCode) {
+  // The real-time subscription already filters by gameCode, so this check is mostly for safety
+  if (!gameState.gameCode || entity.gameCode !== gameState.gameCode) {
     return
   }
 
+  // If it's the current player, their data is managed by gameState.player and updateCurrentPlayerPosition
+  if (gameState.player && entity.id === gameState.player.id) {
+    return
+  }
+
+  console.log("New entity detected:", entity.name, entity.type) // Debug log
+
   if (entity.type === "player") {
     if (!gameState.players.has(entity.id)) {
+      gameState.players.set(entity.id, { data: entity, circle: null })
       addPlayerToMap(entity)
+      console.log("New player added to map:", entity.name) // Debug log
     }
   } else if (entity.type === "cat") {
     if (!gameState.cats.has(entity.id)) {
+      gameState.cats.set(entity.id, { data: entity, marker: null })
       addPlayerToMap(entity)
+      console.log("New cat added to map:", entity.name) // Debug log
     }
   }
 
-  // Update count badges
+  // Force immediate map and UI update
   updateCountBadges()
+  updatePlayersList()
+  updateCatsList()
+
+  // Force map refresh to ensure new entities are visible
+  setTimeout(() => {
+    gameState.map.invalidateSize()
+  }, 100)
+
+  // Show notification for new player
+  if (entity.name && gameState.player && entity.id !== gameState.player.id) {
+    showNotification(
+      `${entity.name} a rejoint la partie en tant que ${entity.type === "player" ? "joueur" : "chat"}`,
+      "info",
+    )
+  }
 }
 
 // Improve handleEntityUpdate to handle transitions better
 function handleEntityUpdate(entity) {
-  // Si le jeu a commencé, ignorer les mises à jour des entités d'autres parties
-  if (gameState.gameStatus === "Started" && entity.gameCode !== gameState.gameCode) {
-    // Si l'entité était déjà dans la liste, la supprimer
-    if (entity.type === "player" && gameState.players.has(entity.id)) {
-      const playerData = gameState.players.get(entity.id)
-      if (playerData.circle) {
-        gameState.map.removeLayer(playerData.circle)
-      }
-      gameState.players.delete(entity.id)
-    } else if (entity.type === "cat" && gameState.cats.has(entity.id)) {
-      const catData = gameState.cats.get(entity.id)
-      if (catData.marker) {
-        gameState.map.removeLayer(catData.marker)
-      }
-      gameState.cats.delete(entity.id)
-    }
-    updateCountBadges()
+  // The real-time subscription already filters by gameCode, so this check is mostly for safety
+  if (!gameState.gameCode || entity.gameCode !== gameState.gameCode) {
+    // If an entity somehow gets an update that changes its gameCode, remove it from our view
+    handleEntityRemoval({ id: entity.id, type: entity.type, gameCode: entity.gameCode })
+    return
+  }
+
+  console.log("Entity update detected:", entity.name, entity.type) // Debug log
+
+  // If it's the current player, their data is managed by gameState.player and updateCurrentPlayerPosition
+  if (gameState.player && entity.id === gameState.player.id) {
+    // Update current player's local state
+    gameState.player = { ...gameState.player, ...entity }
+    updatePlayerTypeIndicator() // In case type changed
+    // The map update for current player is handled by updateCurrentPlayerPosition
     return
   }
 
   if (entity.type === "player") {
     const playerData = gameState.players.get(entity.id)
     if (playerData) {
-      // Check if inZone status has changed
-      const inZoneChanged = playerData.data.inZone !== entity.inZone
-      // Check if position_circle has changed
-      const circlePositionChanged =
-        !playerData.data.position_circle ||
-        !entity.position_circle ||
-        playerData.data.position_circle.lat !== entity.position_circle.lat ||
-        playerData.data.position_circle.lng !== entity.position_circle.lng
-
-      // Update player data
-      playerData.data = entity
-
-      // If inZone status or circle position changed, ensure smooth transition
-      if (inZoneChanged || circlePositionChanged) {
-        // Remove existing circle
-        if (playerData.circle) {
-          gameState.map.removeLayer(playerData.circle)
-          playerData.circle = null
-        }
-
-        // Remove from collection temporarily
+      // Check if type changed (player to cat)
+      if (entity.type !== playerData.data.type) {
+        // Remove from players, add to cats
+        handleEntityRemoval(playerData.data) // Remove old marker/circle
         gameState.players.delete(entity.id)
-
-        // Re-add with new status after a small delay to ensure clean transition
-        setTimeout(() => {
-          addPlayerToMap(entity)
-        }, 50)
+        gameState.cats.set(entity.id, { data: entity, marker: null })
+        addPlayerToMap(entity) // Add new marker/circle
       } else {
-        // Just update position if needed
-        if (entity.inZone && playerData.circle && entity.position_circle) {
-          playerData.circle.setLatLng([entity.position_circle.lat, entity.position_circle.lng])
-          playerData.circle.bindPopup(`${entity.name}`)
+        // Update player data
+        playerData.data = entity
+        // Update map layer if it exists, otherwise re-add
+        if (playerData.circle) {
+          if (entity.inZone && entity.position_circle) {
+            playerData.circle.setLatLng([entity.position_circle.lat, entity.position_circle.lng])
+            playerData.circle.bindPopup(`${entity.name}`)
+          } else {
+            // Player left zone or position_circle became null, remove circle
+            gameState.map.removeLayer(playerData.circle)
+            playerData.circle = null
+          }
+        } else if (entity.inZone && entity.position_circle) {
+          // Circle doesn't exist but should, re-add
+          addPlayerToMap(entity)
         }
       }
     } else {
-      // New player, add to map
+      // New player (should be handled by INSERT, but as fallback)
+      gameState.players.set(entity.id, { data: entity, circle: null })
       addPlayerToMap(entity)
     }
   } else if (entity.type === "cat") {
     const catData = gameState.cats.get(entity.id)
     if (catData) {
-      catData.data = entity
-      catData.marker.setLatLng([entity.position.lat, entity.position.lng])
-      catData.marker.bindPopup(entity.name)
+      // Check if type changed (cat to player)
+      if (entity.type !== catData.data.type) {
+        // Remove from cats, add to players
+        handleEntityRemoval(catData.data) // Remove old marker/circle
+        gameState.cats.delete(entity.id)
+        gameState.players.set(entity.id, { data: entity, circle: null })
+        addPlayerToMap(entity) // Add new marker/circle
+      } else {
+        catData.data = entity
+        if (catData.marker) {
+          catData.marker.setLatLng([entity.position.lat, entity.position.lng])
+          catData.marker.bindPopup(entity.name)
+        }
+      }
     } else {
-      // New cat, add to map
+      // New cat (should be handled by INSERT, but as fallback)
+      gameState.cats.set(entity.id, { data: entity, marker: null })
       addPlayerToMap(entity)
     }
   }
 
-  // Update count badges
+  // Force immediate UI update
   updateCountBadges()
+  updatePlayersList()
+  updateCatsList()
+
+  // Force map refresh
+  setTimeout(() => {
+    gameState.map.invalidateSize()
+  }, 100)
 }
 
 // Update the geolocation watch to use proper interval timing
@@ -2465,44 +2504,72 @@ function setupGeoLocationWatch() {
 }
 
 // Fetch existing entities
-async function fetchExistingEntities() {
-  // Si le jeu est démarré, ne récupérer que les joueurs de la même partie
-  let playerQuery = supabase.from("player").select("*").eq("type", "player").order("score", { ascending: false })
-  let catQuery = supabase.from("player").select("*").eq("type", "cat")
+function startPeriodicRefresh() {
+  setInterval(async () => {
+    if (gameState.gameCode && gameState.player) {
+      // Refresh entities every 10 seconds as backup
+      await fetchExistingEntities()
+    }
+  }, 10000) // Every 10 seconds
+}
 
-  if (gameState.gameStatus === "Started" && gameState.gameCode) {
-    playerQuery = playerQuery.eq("gameCode", gameState.gameCode)
-    catQuery = catQuery.eq("gameCode", gameState.gameCode)
+// Call this after joining the game
+startPeriodicRefresh()
+
+// Fetch existing entities
+async function fetchExistingEntities() {
+  if (!gameState.gameCode) {
+    console.warn("No game code available to fetch existing entities.")
+    return
   }
 
-  // Fetch players
-  const { data: players, error: playersError } = await playerQuery
+  // Clear existing players/cats from maps before fetching new ones
+  gameState.players.clear()
+  gameState.cats.clear()
+
+  // Fetch players for the current gameCode
+  const { data: players, error: playersError } = await supabase
+    .from("player")
+    .select("*")
+    .eq("gameCode", gameState.gameCode) // Always filter by gameCode
+    .eq("type", "player")
+    .order("score", { ascending: false })
 
   if (playersError) {
     console.error("Error fetching players:", playersError)
   } else if (players) {
-    // Add existing players to map
     players.forEach((player) => {
-      // Skip if it's the current player
-      if (gameState.player && player.id === gameState.player.id) return
-
-      addPlayerToMap(player)
+      if (gameState.player && player.id === gameState.player.id) {
+        // This is the current player, handled separately
+        return
+      }
+      gameState.players.set(player.id, { data: player, circle: null })
     })
   }
 
-  // Fetch cats
-  const { data: cats, error: catsError } = await catQuery
+  // Fetch cats for the current gameCode
+  const { data: cats, error: catsError } = await supabase
+    .from("player")
+    .select("*")
+    .eq("gameCode", gameState.gameCode) // Always filter by gameCode
+    .eq("type", "cat")
 
   if (catsError) {
     console.error("Error fetching cats:", catsError)
   } else if (cats) {
-    // Add existing cats to map
     cats.forEach((cat) => {
-      addPlayerToMap(cat)
+      if (gameState.player && cat.id === gameState.player.id) {
+        // This is the current player, handled separately
+        return
+      }
+      gameState.cats.set(cat.id, { data: cat, marker: null })
     })
   }
 
-  // Update count badges
+  // Update map and lists after fetching
+  updateMap()
+  updatePlayersList()
+  updateCatsList()
   updateCountBadges()
 }
 
@@ -2516,35 +2583,25 @@ function updatePlayersList() {
     li.textContent = `${gameState.player.name} (Vous)`
     li.style.fontWeight = "bold"
     elements.playersList.appendChild(li)
-    addedPlayers.add(gameState.player.name)
+    addedPlayers.add(gameState.player.id) // Use ID for uniqueness
   }
 
-  // Filtrer les joueurs selon le code de partie si le jeu a commencé
   gameState.players.forEach((player) => {
-    if (!addedPlayers.has(player.data.name)) {
-      // Si le jeu a commencé, vérifier que le joueur est dans la même partie
-      if (gameState.gameStatus === "Started" && player.data.gameCode !== gameState.gameCode) {
-        return
-      }
-
+    if (!addedPlayers.has(player.data.id)) {
+      // Check by ID
       const li = document.createElement("li")
       li.textContent = player.data.name
-      if (gameState.player && player.data.name === gameState.player.name) {
-        li.textContent += " (Vous)"
-        li.style.fontWeight = "bold"
-      }
+      // No need for (Vous) check here, as current player is added separately
+      // No need for gameCode check here, as gameState.players is already filtered
 
-      // Add click to center map on player
       li.addEventListener("click", () => {
         if (player.data.position) {
           gameState.map.setView([player.data.position.lat, player.data.position.lng], 18)
-          // Switch to map tab after clicking
           switchTabFn("map")
         }
       })
-
       elements.playersList.appendChild(li)
-      addedPlayers.add(player.data.name)
+      addedPlayers.add(player.data.id)
     }
   })
 }
@@ -2559,35 +2616,25 @@ function updateCatsList() {
     li.textContent = `${gameState.player.name} (Vous)`
     li.style.fontWeight = "bold"
     elements.catsList.appendChild(li)
-    addedCats.add(gameState.player.name)
+    addedCats.add(gameState.player.id) // Use ID for uniqueness
   }
 
-  // Filtrer les chats selon le code de partie si le jeu a commencé
   gameState.cats.forEach((cat) => {
-    if (!addedCats.has(cat.data.name)) {
-      // Si le jeu a commencé, vérifier que le chat est dans la même partie
-      if (gameState.gameStatus === "Started" && cat.data.gameCode !== gameState.gameCode) {
-        return
-      }
-
+    if (!addedCats.has(cat.data.id)) {
+      // Check by ID
       const li = document.createElement("li")
       li.textContent = cat.data.name
-      if (gameState.player && cat.data.name === gameState.player.name) {
-        li.textContent += " (Vous)"
-        li.style.fontWeight = "bold"
-      }
+      // No need for (Vous) check here, as current player is added separately
+      // No need for gameCode check here, as gameState.cats is already filtered
 
-      // Add click to center map on cat
       li.addEventListener("click", () => {
         if (cat.data.position) {
           gameState.map.setView([cat.data.position.lat, cat.data.position.lng], 18)
-          // Switch to map tab after clicking
           switchTabFn("map")
         }
       })
-
       elements.catsList.appendChild(li)
-      addedCats.add(cat.data.name)
+      addedCats.add(cat.data.id)
     }
   })
 }
@@ -2796,27 +2843,6 @@ async function refreshMapAndLists() {
   }
 }
 
-// Améliorer la fonction syncWithServer pour vérifier l'état des marqueurs
-function syncWithServer() {
-  if (!gameState.player) return
-
-  console.log("Synchronizing with server...")
-
-  // Mettre à jour la position du joueur sur le serveur
-  updatePlayerPosition()
-    .then(() => {
-      // Rafraîchir la carte et les listes
-      return refreshMapAndLists()
-    })
-    .then(() => {
-      gameState.lastServerUpdate = Date.now()
-      gameState.pendingPositionUpdate = false
-    })
-    .catch((error) => {
-      console.error("Error during server sync:", error)
-    })
-}
-
 // Fonction pour mettre à jour la position du joueur
 async function updatePlayerPosition() {
   if (!gameState.player) return
@@ -2857,7 +2883,6 @@ async function updatePlayerPosition() {
 //   collected_by TEXT,
 //   collected_at TIMESTAMP WITH TIME ZONE
 // );
-
 
 document.addEventListener("DOMContentLoaded", () => {
   const manualLocationToggle = document.getElementById("manual-location-toggle")
@@ -2916,27 +2941,6 @@ document.addEventListener("DOMContentLoaded", () => {
   })
 })
 
-
-// Ajouter la fonction saveAvatar
-async function saveAvatar(playerId, avatar) {
-  try {
-    const { error } = await supabase
-      .from("player")
-      .update({ image: avatar }) // Sauvegarde l'émoji ou l'image en base64
-      .eq("id", playerId)
-
-    if (error) {
-      console.error("Erreur lors de la sauvegarde de l'avatar :", error)
-      showNotification("Erreur lors de la sauvegarde de l'avatar.", "error")
-    } else {
-      showNotification("Avatar mis à jour avec succès !", "success")
-      refreshMapAndLists() // Met à jour l'interface
-    }
-  } catch (err) {
-    console.error("Erreur :", err)
-  }
-}
-
 // Ajouter des écouteurs d'événements pour les boutons d'ajout d'image
 document.getElementById("add-player-icon-join").addEventListener("click", (e) => {
   e.preventDefault()
@@ -2965,7 +2969,8 @@ function openImageSelector(associatedInputId) {
         const imageBase64 = e.target.result
 
         // Update the corresponding preview image
-        const previewId = associatedInputId === "player-name" ? "player-icon-preview-join" : "player-icon-preview-create"
+        const previewId =
+          associatedInputId === "player-name" ? "player-icon-preview-join" : "player-icon-preview-create"
         const buttonId = associatedInputId === "player-name" ? "add-player-icon-join" : "add-player-icon-create"
 
         const previewElement = document.getElementById(previewId)
