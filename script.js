@@ -2222,56 +2222,6 @@ async function startGameTimer() {
   }
 }
 
-// Fonction auxiliaire pour démarrer le système de score
-function startScoring() {
-  if (scoreInterval) {
-    clearInterval(scoreInterval)
-  }
-
-  scoreInterval = setInterval(() => {
-    if (gameState.player && gameState.player.type === "player" && gameState.inZone) {
-      // Augmenter le score de 10 points toutes les 20 secondes si dans la zone
-      gameState.player.score += 10
-      
-      // Mettre à jour l'affichage du score
-      if (elements.playerScore) {
-        elements.playerScore.textContent = Math.round(gameState.player.score)
-      }
-
-      // Marquer qu'une mise à jour est nécessaire
-      gameState.pendingPositionUpdate = true
-    }
-  }, 20000) // Toutes les 20 secondes
-}
-
-// Handle real-time updates
-function handleRealtimeUpdate(payload) {
-  const { eventType, new: newRecord, old: oldRecord } = payload
-
-  // Skip if it's the current player's update
-  if (gameState.player && newRecord && newRecord.id === gameState.player.id) {
-    return
-  }
-
-  switch (eventType) {
-    case "INSERT":
-      handleNewEntity(newRecord)
-      break
-    case "UPDATE":
-      handleEntityUpdate(newRecord)
-      break
-    case "DELETE":
-      handleEntityRemoval(oldRecord)
-      break
-  }
-
-  // Actualiser la carte et les listes après chaque mise à jour
-  updateMap()
-  updatePlayersList()
-  updateCatsList()
-  updateCountBadges()
-}
-
 // Update count badges in navbar
 function updateCountBadges() {
   // Ne compter que les joueurs de la même partie si le jeu a commencé
