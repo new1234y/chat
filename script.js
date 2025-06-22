@@ -932,24 +932,69 @@ function setupEventListeners() {
     })
   }
 
-  // Add functionality to share the game code
-  document.getElementById("share-game-code").addEventListener("click", () => {
-    const gameCode = gameState.gameCode || elements.gameCode.value.trim().toUpperCase()
-    if (gameCode) {
-      const shareUrl = `https://new1234y.github.io/chat/?code=${gameCode}`
-      navigator.clipboard
-        .writeText(shareUrl)
-        .then(() => {
-          showNotification("Lien de partage copié dans le presse-papiers !", "success")
-        })
-        .catch(() => {
-          showNotification("Impossible de copier le lien. Veuillez réessayer.", "error")
-        })
-    } else {
-      showNotification("Aucun code de partie disponible à partager.", "error")
+  // Add functionality to share the game code with a select dropdown
+  document.getElementById("share-game-code").addEventListener("click", (e) => {
+    e.stopPropagation();
+    // Afficher le select de partage
+    const shareSelect = document.getElementById("share-select");
+    if (shareSelect) {
+      shareSelect.style.display = "inline-block";
+      shareSelect.selectedIndex = 0; // reset selection
+      shareSelect.focus();
     }
-  })
+  });
 
+  // Cacher le select si on clique ailleurs
+  document.addEventListener("click", (event) => {
+    const shareSelect = document.getElementById("share-select");
+    const shareBtn = document.getElementById("share-game-code");
+    if (
+      shareSelect &&
+      shareSelect.style.display === "inline-block" &&
+      event.target !== shareSelect &&
+      event.target !== shareBtn
+    ) {
+      shareSelect.style.display = "none";
+    }
+  });
+
+  // Gérer les actions du select de partage
+  document.getElementById("share-select").addEventListener("change", async function () {
+    const value = this.value;
+    const gameCode = gameState.gameCode || elements.gameCode.value.trim().toUpperCase();
+    const shareUrl = gameCode ? `https://new1234y.github.io/chat/?code=${gameCode}` : "";
+    if (value === "copy") {
+      if (shareUrl) {
+        navigator.clipboard
+          .writeText(shareUrl)
+          .then(() => {
+            showNotification("Lien de partage copié dans le presse-papiers !", "success");
+          })
+          .catch(() => {
+            showNotification("Impossible de copier le lien. Veuillez réessayer.", "error");
+          });
+      } else {
+        showNotification("Aucun code de partie disponible à partager.", "error");
+      }
+      this.style.display = "none";
+    } else if (value === "native") {
+      if (shareUrl && navigator.share) {
+        try {
+          await navigator.share({
+            title: "Cat Chase 2025",
+            text: "Rejoins ma partie sur Cat Chase !",
+            url: shareUrl,
+          });
+          showNotification("Lien partagé !", "success");
+        } catch (err) {
+          // L'utilisateur a annulé ou une erreur est survenue
+        }
+      } else {
+        showNotification("Le partage natif n'est pas supporté sur ce navigateur.", "error");
+      }
+      this.style.display = "none";
+    }
+  });
 }
 
 // Initialiser la carte pour la création de partie
