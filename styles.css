@@ -764,20 +764,22 @@ body.dark {
   margin-top: 10px;
   border: none;
   outline: none;
-  box-shadow: var(--box-shadow-dark);
+  box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3);
   color: var(--foreground-light);
   transition: all 0.3s ease;
 }
 
 .form-group input:focus,
 .form-group select:focus {
-  box-shadow: var(--box-shadow-dark-inset);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18) inset;
 }
 
+/* Pour le dark mode */
 .dark .form-group input,
 .dark .form-group select {
   background-color: var(--background-dark);
   color: var(--foreground-dark);
+  box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3);
 }
 
 /* Ajouter un style pour le texte d'information */
