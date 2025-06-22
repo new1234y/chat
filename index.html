@@ -219,12 +219,11 @@
       <button id="share-game-code" class="btn-secondary share-btn">
         <i class="fa fa-share-alt" style="margin: 5px;"></i> Partager
       </button>
-      <!-- Remplacer le menu contextuel par un select classique -->
-      <select id="share-select" style="display: none; margin-left: 10px;">
-        <option value="">Choisir une action...</option>
-        <option value="copy">Copier le lien</option>
-        <option value="native">Partager le lien</option>
-      </select>
+            <!-- Ajout du menu contextuel de partage -->
+      <div id="share-menu" style="display: none; position: absolute; z-index: 1000; background: var(--background); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); padding: 8px; min-width: 160px;">
+        <button id="copy-link-btn" class="btn btn-secondary" style="width: 100%; margin-bottom: 6px;">Copier le lien</button>
+        <button id="native-share-btn" class="btn btn-secondary" style="width: 100%;">Partager le lien</button>
+      </div>
     </div>
     
     <!-- Bouton de démarrage (visible uniquement pour le créateur) -->

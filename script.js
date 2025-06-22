@@ -932,69 +932,24 @@ function setupEventListeners() {
     })
   }
 
-  // Add functionality to share the game code with a select dropdown
-  document.getElementById("share-game-code").addEventListener("click", (e) => {
-    e.stopPropagation();
-    // Afficher le select de partage
-    const shareSelect = document.getElementById("share-select");
-    if (shareSelect) {
-      shareSelect.style.display = "inline-block";
-      shareSelect.selectedIndex = 0; // reset selection
-      shareSelect.focus();
+  // Add functionality to share the game code
+  document.getElementById("share-game-code").addEventListener("click", () => {
+    const gameCode = gameState.gameCode || elements.gameCode.value.trim().toUpperCase()
+    if (gameCode) {
+      const shareUrl = `https://new1234y.github.io/chat/?code=${gameCode}`
+      navigator.clipboard
+        .writeText(shareUrl)
+        .then(() => {
+          showNotification("Lien de partage copié dans le presse-papiers !", "success")
+        })
+        .catch(() => {
+          showNotification("Impossible de copier le lien. Veuillez réessayer.", "error")
+        })
+    } else {
+      showNotification("Aucun code de partie disponible à partager.", "error")
     }
-  });
+  })
 
-  // Cacher le select si on clique ailleurs
-  document.addEventListener("click", (event) => {
-    const shareSelect = document.getElementById("share-select");
-    const shareBtn = document.getElementById("share-game-code");
-    if (
-      shareSelect &&
-      shareSelect.style.display === "inline-block" &&
-      event.target !== shareSelect &&
-      event.target !== shareBtn
-    ) {
-      shareSelect.style.display = "none";
-    }
-  });
-
-  // Gérer les actions du select de partage
-  document.getElementById("share-select").addEventListener("change", async function () {
-    const value = this.value;
-    const gameCode = gameState.gameCode || elements.gameCode.value.trim().toUpperCase();
-    const shareUrl = gameCode ? `https://new1234y.github.io/chat/?code=${gameCode}` : "";
-    if (value === "copy") {
-      if (shareUrl) {
-        navigator.clipboard
-          .writeText(shareUrl)
-          .then(() => {
-            showNotification("Lien de partage copié dans le presse-papiers !", "success");
-          })
-          .catch(() => {
-            showNotification("Impossible de copier le lien. Veuillez réessayer.", "error");
-          });
-      } else {
-        showNotification("Aucun code de partie disponible à partager.", "error");
-      }
-      this.style.display = "none";
-    } else if (value === "native") {
-      if (shareUrl && navigator.share) {
-        try {
-          await navigator.share({
-            title: "Cat Chase 2025",
-            text: "Rejoins ma partie sur Cat Chase !",
-            url: shareUrl,
-          });
-          showNotification("Lien partagé !", "success");
-        } catch (err) {
-          // L'utilisateur a annulé ou une erreur est survenue
-        }
-      } else {
-        showNotification("Le partage natif n'est pas supporté sur ce navigateur.", "error");
-      }
-      this.style.display = "none";
-    }
-  });
 }
 
 // Initialiser la carte pour la création de partie
@@ -1870,8 +1825,9 @@ function updateCurrentPlayerPosition(position) {
 
   // Store the previous state to detect changes
   const wasOutsideBoundary = gameState.isOutsideBoundary
-
   gameState.isOutsideBoundary = isOutsideGlobalBoundary
+
+ 
 
   // Update inZone status
   const newInZone = !isOutsideGlobalBoundary
@@ -2252,6 +2208,12 @@ async function startGameTimer() {
     // Démarrer le timer avec mise à jour toutes les secondes
     updateTimerDisplay() // Mise à jour immédiate
     gameTimerInterval = setInterval(updateTimerDisplay, 1000)
+
+    // Démarrer le score pour les joueurs
+    if (gameState.player && gameState.player.type === "player") {
+      startScoring()
+    }
+
     console.log("Timer de jeu démarré avec succès")
 
   } catch (error) {
@@ -2260,6 +2222,55 @@ async function startGameTimer() {
   }
 }
 
+// Fonction auxiliaire pour démarrer le système de score
+function startScoring() {
+  if (scoreInterval) {
+    clearInterval(scoreInterval)
+  }
+
+  scoreInterval = setInterval(() => {
+    if (gameState.player && gameState.player.type === "player" && gameState.inZone) {
+      // Augmenter le score de 10 points toutes les 20 secondes si dans la zone
+      gameState.player.score += 10
+      
+      // Mettre à jour l'affichage du score
+      if (elements.playerScore) {
+        elements.playerScore.textContent = Math.round(gameState.player.score)
+      }
+
+      // Marquer qu'une mise à jour est nécessaire
+      gameState.pendingPositionUpdate = true
+    }
+  }, 20000) // Toutes les 20 secondes
+}
+
+// Handle real-time updates
+function handleRealtimeUpdate(payload) {
+  const { eventType, new: newRecord, old: oldRecord } = payload
+
+  // Skip if it's the current player's update
+  if (gameState.player && newRecord && newRecord.id === gameState.player.id) {
+    return
+  }
+
+  switch (eventType) {
+    case "INSERT":
+      handleNewEntity(newRecord)
+      break
+    case "UPDATE":
+      handleEntityUpdate(newRecord)
+      break
+    case "DELETE":
+      handleEntityRemoval(oldRecord)
+      break
+  }
+
+  // Actualiser la carte et les listes après chaque mise à jour
+  updateMap()
+  updatePlayersList()
+  updateCatsList()
+  updateCountBadges()
+}
 
 // Update count badges in navbar
 function updateCountBadges() {
@@ -2633,10 +2644,10 @@ function updateCatsList() {
 
 // Clean up when leaving the page
 window.addEventListener("beforeunload", async () => {
-  // Supprimer la suppression automatique du joueur à la fermeture de la page
-  // if (gameState.player) {
-  //   await supabase.from("player").delete().eq("id", gameState.player.id)
-  // }
+  // Remove player from database when leaving
+  if (gameState.player) {
+    await supabase.from("player").delete().eq("id", gameState.player.id)
+  }
 
   // Unsubscribe from real-time updates
   if (gameState.subscription) {
