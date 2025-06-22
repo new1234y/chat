@@ -19,11 +19,11 @@
 
   /* Shared variables */
   --border-radius: 15px;
-  --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --box-shadow-light: 8px 8px 16px var(--shadow-light-2), -8px -8px 16px var(--shadow-light-1);
-  --box-shadow-light-inset: inset 8px 8px 16px var(--shadow-light-2), inset -8px -8px 16px var(--shadow-light-1);
-  --box-shadow-dark: 8px 8px 16px var(--shadow-dark-2), -8px -8px 16px var(--shadow-dark-1);
-  --box-shadow-dark-inset: inset 8px 8px 16px var(--shadow-dark-2), inset -8px -8px 16px var(--shadow-dark-1);
+  --box-shadow: 0 8px 32px rgba(0,0,0,0.28), 0 3px 12px rgba(0,0,0,0.18);
+  --box-shadow-light: 0 12px 48px rgba(108,92,231,0.28), 0 3px 12px rgba(0,0,0,0.18);
+  --box-shadow-light-inset: inset 0 12px 48px rgba(108,92,231,0.18), inset 0 3px 12px rgba(0,0,0,0.16);
+  --box-shadow-dark: 0 12px 48px rgba(30,30,40,0.38), 0 3px 12px rgba(0,0,0,0.28);
+  --box-shadow-dark-inset: inset 0 12px 48px rgba(30,30,40,0.28), inset 0 3px 12px rgba(0,0,0,0.22);
 }
 
 * {
@@ -216,7 +216,7 @@ body.dark {
   align-items: center;
   gap: 8px;
   backdrop-filter: blur(4px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
   border: none;
   transition: background 0.2s;
 }
@@ -253,7 +253,7 @@ body.dark {
   justify-content: center;
   border-radius: 50%;
   transition: background 0.2s;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
   padding: 4px;
   width: 36px;
   height: 36px;
@@ -369,7 +369,7 @@ body.dark {
   display: flex;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
   transition: all 0.2s ease;
   height: 40px;
 }
@@ -1255,7 +1255,7 @@ body.dark {
   width: 50px;
   background: transparent;
   backdrop-filter: blur(4px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
   border: none;
   transition: background 0.2s;
   border-radius: 50%;
@@ -1831,49 +1831,19 @@ body.dark {
   font-size: 1.6rem;
 }
 
+.waiting-count,
+.game-code-display {
+  font-size: 0.9rem;
+  padding: 6px 12px;
+}
+
 .waiting-info {
-  margin-top: 15px;
-  color: var(--foreground-light);
-  font-size: 1rem;
-  padding: 0 10px;
-  max-width: 300px;
-  line-height: 1.4;
+  font-size: 0.9rem;
 }
 
-.dark .waiting-info {
-  color: var(--foreground-dark);
-}
-
-.waiting-count {
-  background-color: var(--primary-color);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-weight: bold;
-  margin: 15px 0;
-  font-size: 1rem;
-}
-
-/* Améliorer l'affichage sur les petits écrans */
-@media (max-width: 360px) {
-  .waiting-container h2 {
-    font-size: 1.4rem;
-  }
-
-  .waiting-count,
-  .game-code-display {
-    font-size: 0.9rem;
-    padding: 6px 12px;
-  }
-
-  .waiting-info {
-    font-size: 0.9rem;
-  }
-
-  .loader-spinner {
-    width: 50px;
-    height: 50px;
-  }
+.loader-spinner {
+  width: 50px;
+  height: 50px;
 }
 
 /* QR Code Button and Modal */
@@ -1890,7 +1860,7 @@ body.dark {
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
 }
 
 .qr-code-btn i {
@@ -1959,4 +1929,43 @@ body.dark {
   background-color: var(--background-dark);
     color: var(--foreground-dark);
     margin: 0px 10px 0px 0px;
+}
+
+/* iOS-specific shadow fix */
+@media not all and (min-resolution:.001dpcm) {
+  @supports (-webkit-touch-callout: none) {
+    .status-container,
+    #score-module,
+    .list-section,
+    .entity-list li,
+    .btn,
+    .btn-primary,
+    .btn-warning,
+    .btn-danger,
+    .map-control-btn,
+    .login-container,
+    .modal-content,
+    #player-type-indicator,
+    .game-code-display,
+    .marker-progress,
+    .waiting-container,
+    .code-display,
+    .share-btn,
+    .qr-code-btn {
+      box-shadow: 0 12px 48px rgba(0,0,0,0.32) !important;
+      -webkit-box-shadow: 0 12px 48px rgba(0,0,0,0.32) !important;
+    }
+    .btn:active,
+    .btn-primary:active,
+    .btn-warning:active,
+    .btn-danger:active,
+    .map-control-btn:active,
+    .login-container:active,
+    .modal-content:active,
+    .entity-list li:active,
+    .list-section:active {
+      box-shadow: 0 4px 18px rgba(0,0,0,0.22) inset !important;
+      -webkit-box-shadow: 0 4px 18px rgba(0,0,0,0.22) inset !important;
+    }
+  }
 }
